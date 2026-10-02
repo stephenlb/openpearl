@@ -48,7 +48,8 @@ jobs:
           trello GET "/lists/$TRELLO_TODO_LIST_ID/cards" -G --data-urlencode "fields=name,desc,shortLink,url" \
             > "$RUNNER_TEMP/trello.json"
 
-          jq -c '.[]' "$RUNNER_TEMP/trello.json" | while read -r card; do
+          failed=0
+          while read -r card; do
             id=$(jq -r '.id' <<<"$card")
             key=$(jq -r '.shortLink' <<<"$card")
             cardurl=$(jq -r '.url' <<<"$card")
@@ -58,17 +59,18 @@ jobs:
             while [[ "$description" == *"<!--"* ]]; do description="${description//<!--/}"; done
             marker="trello-key: $key"
 
-            # List instead of search: the search index lags, which would allow duplicates
+            # List instead of search: the search index lags, which would allow duplicates.
+            # Known limit: only the 1000 most recent issues are checked for the marker.
             existing=$(gh issue list --state all --limit 1000 --json number,body \
               --jq "[.[] | select(.body | contains(\"<!-- $marker -->\"))][0].number // empty") \
-              || { echo "::warning::Could not check existing issues for $key"; continue; }
+              || { echo "::error::Could not check existing issues for $key"; failed=1; continue; }
             if [ -n "$existing" ]; then
               echo "$key already has GitHub issue #$existing"
             else
               printf '%s\n\n%s\n\n<!-- %s -->\n' \
                 "Imported from Trello: [$key]($cardurl)" "$description" "$marker" > "$RUNNER_TEMP/body.md"
               url=$(gh issue create --title "[$key] $title" --body-file "$RUNNER_TEMP/body.md") \
-                || { echo "::warning::Could not create GitHub issue for $key"; continue; }
+                || { echo "::error::Could not create GitHub issue for $key"; failed=1; continue; }
               echo "Created $url for $key"
               trello POST "/cards/$id/actions/comments" --data-urlencode "text=GitHub issue created: $url" \
                 > /dev/null || true
@@ -76,5 +78,7 @@ jobs:
 
             # Move the card out of the to-do list so it is not pulled again
             trello PUT "/cards/$id" --data-urlencode "idList=$TRELLO_IN_PROGRESS_LIST_ID" > /dev/null \
-              || echo "::warning::Could not move card $key"
-          done
+              || { echo "::error::Could not move card $key"; failed=1; }
+          done < <(jq -c '.[]' "$RUNNER_TEMP/trello.json")
+          # Fail the job so persistent problems are visible
+          exit "$failed"
