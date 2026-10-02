@@ -1,0 +1,80 @@
+name: Trello to Issue
+
+on:
+  # Polling is off by default. To enable, uncomment the next 2 lines (after adding the Trello secrets).
+  # schedule:
+  #   - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+concurrency:
+  group: trello-to-issue
+  cancel-in-progress: false
+
+env:
+  # Issues must be created with a PAT, otherwise GitHub will not trigger the Issue to PR workflow
+  GH_TOKEN: ${{ secrets.PUSH_TOKEN }}
+  GH_REPO: ${{ github.repository }}
+  TRELLO_API_KEY: ${{ secrets.TRELLO_API_KEY }}
+  TRELLO_TOKEN: ${{ secrets.TRELLO_TOKEN }}
+  # ID of the list to pull cards from
+  TRELLO_TODO_LIST_ID: ${{ vars.TRELLO_TODO_LIST_ID }}
+  # ID of the list to move pulled cards to
+  TRELLO_IN_PROGRESS_LIST_ID: ${{ vars.TRELLO_IN_PROGRESS_LIST_ID }}
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Pull new Trello cards
+        run: |
+          for v in GH_TOKEN TRELLO_API_KEY TRELLO_TOKEN TRELLO_TODO_LIST_ID TRELLO_IN_PROGRESS_LIST_ID; do
+            [ -n "${!v}" ] || { echo "$v is not configured; skipping Trello pull"; exit 0; }
+          done
+          for v in TRELLO_TODO_LIST_ID TRELLO_IN_PROGRESS_LIST_ID; do
+            [[ "${!v}" =~ ^[A-Za-z0-9]+$ ]] || { echo "$v must be a Trello list ID"; exit 1; }
+          done
+          base="https://api.trello.com/1"
+
+          trello() {
+            local method="$1" path="$2"; shift 2
+            curl -fsS --max-time 60 -X "$method" "$base$path" \
+              --data-urlencode "key=$TRELLO_API_KEY" --data-urlencode "token=$TRELLO_TOKEN" "$@"
+          }
+
+          trello GET "/lists/$TRELLO_TODO_LIST_ID/cards" -G --data-urlencode "fields=name,desc,shortLink,url" \
+            > "$RUNNER_TEMP/trello.json"
+
+          jq -c '.[]' "$RUNNER_TEMP/trello.json" | while read -r card; do
+            id=$(jq -r '.id' <<<"$card")
+            key=$(jq -r '.shortLink' <<<"$card")
+            cardurl=$(jq -r '.url' <<<"$card")
+            title=$(jq -r '.name' <<<"$card")
+            # Strip comment openers so the description cannot spoof the trello-key marker
+            description=$(jq -r '.desc // ""' <<<"$card")
+            while [[ "$description" == *"<!--"* ]]; do description="${description//<!--/}"; done
+            marker="trello-key: $key"
+
+            # List instead of search: the search index lags, which would allow duplicates
+            existing=$(gh issue list --state all --limit 1000 --json number,body \
+              --jq "[.[] | select(.body | contains(\"<!-- $marker -->\"))][0].number // empty") \
+              || { echo "::warning::Could not check existing issues for $key"; continue; }
+            if [ -n "$existing" ]; then
+              echo "$key already has GitHub issue #$existing"
+            else
+              printf '%s\n\n%s\n\n<!-- %s -->\n' \
+                "Imported from Trello: [$key]($cardurl)" "$description" "$marker" > "$RUNNER_TEMP/body.md"
+              url=$(gh issue create --title "[$key] $title" --body-file "$RUNNER_TEMP/body.md") \
+                || { echo "::warning::Could not create GitHub issue for $key"; continue; }
+              echo "Created $url for $key"
+              trello POST "/cards/$id/actions/comments" --data-urlencode "text=GitHub issue created: $url" \
+                > /dev/null || true
+            fi
+
+            # Move the card out of the to-do list so it is not pulled again
+            trello PUT "/cards/$id" --data-urlencode "idList=$TRELLO_IN_PROGRESS_LIST_ID" > /dev/null \
+              || echo "::warning::Could not move card $key"
+          done
