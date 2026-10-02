@@ -206,6 +206,64 @@ jobs:
           gh issue comment "$ISSUE_NUMBER" --body "I opened a PR for this issue: $PR_URL"
           gh pr comment "$PR_NUMBER" --body "ready to go"
 
+      - name: Eval - PR ready to auto-merge
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          PR_URL: ${{ steps.pr.outputs.url }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "Running final eval to decide whether PR $PR_URL is safe to auto-merge..."
+          printf '# %s\n\n%s\n' "$ISSUE_TITLE" "$ISSUE_BODY" > "$RUNNER_TEMP/issue.md"
+
+          # Final review-only pass so the round-2 fixes are also reviewed
+          claude -p "Code review the changes on this branch: run 'git diff origin/$BASE...HEAD'. Look for correctness bugs, security issues, and clear maintainability problems. Output a concise markdown list of concrete findings with file and line, most severe first. If there is nothing worth fixing, output exactly: NO ISSUES" \
+            --allowedTools "$TOOLS_REVIEW" > "$RUNNER_TEMP/review-3.md" || echo "Final review failed" > "$RUNNER_TEMP/review-3.md"
+          final_clean=false
+          grep -qx "NO ISSUES" "$RUNNER_TEMP/review-3.md" && final_clean=true
+
+          # Deterministic guard: never auto-merge changes to workflows
+          protected=$(git diff --name-only "origin/$BASE...HEAD" | grep -E '^\.github/' || true)
+
+          verdict=NO
+          if [ -n "$protected" ]; then
+            printf 'Auto-merge blocked: diff touches protected paths:\n%s\n' "$protected" > "$RUNNER_TEMP/eval.md"
+          elif [ "$final_clean" != "true" ]; then
+            echo "Auto-merge blocked: final review did not report NO ISSUES" > "$RUNNER_TEMP/eval.md"
+          elif claude -p "$(cat .github/workflows/evals/pr-ready-to-merge.md)
+
+          Base branch: origin/$BASE
+          Issue file: $RUNNER_TEMP/issue.md
+          Review files: $RUNNER_TEMP/review-1.md, $RUNNER_TEMP/review-2.md, $RUNNER_TEMP/review-3.md (review-3 is the final review of the fixed code and takes precedence)" \
+            --allowedTools "$TOOLS_REVIEW,Read($RUNNER_TEMP/**)" \
+            --max-turns 20 > "$RUNNER_TEMP/eval.md"; then
+            # Fail closed: only a final line of exactly YES (surrounding whitespace ignored) merges
+            last=$(grep -v '^[[:space:]]*$' "$RUNNER_TEMP/eval.md" | tail -n 1 | tr -d '[:space:]')
+            [ "$last" = "YES" ] && verdict=YES
+          else
+            echo "Eval command failed" > "$RUNNER_TEMP/eval.md"
+          fi
+          cat "$RUNNER_TEMP/eval.md"
+
+          gh pr comment "$PR_NUMBER" --body-file - <<EOF
+          ## Auto-merge eval
+
+          $(cat "$RUNNER_TEMP/eval.md")
+          EOF
+
+          if [ "$verdict" = "YES" ]; then
+            gh issue comment "$ISSUE_NUMBER" --body "Auto-merge eval: YES. Waiting for CI on $PR_URL..."
+            if gh pr checks "$PR_NUMBER" --watch --fail-fast \
+              && gh pr merge "$PR_NUMBER" --squash --delete-branch; then
+              gh issue comment "$ISSUE_NUMBER" --body "Merged $PR_URL."
+            else
+              gh issue comment "$ISSUE_NUMBER" --body "Auto-merge failed (checks failing/missing or merge blocked). Leaving $PR_URL open for human review."
+            fi
+          else
+            gh issue comment "$ISSUE_NUMBER" --body "Auto-merge eval: NO. Leaving $PR_URL open for human review."
+          fi
+
       - name: Report failure
         if: failure()
         run: |
