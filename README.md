@@ -30,13 +30,13 @@ Configure one of the two providers below under **Settings → Secrets and variab
 
 Model access must be enabled in the Bedrock console for the chosen region. If you leave `ANTHROPIC_MODEL` unset, Claude Code uses its default model ID, which must be available in your account.
 
-### GitHub token (required)
+### GitHub token (optional)
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| `PUSH_TOKEN` | Secret | Yes | Fine-grained PAT (or GitHub App token) for this repo with read/write on **Contents**, **Pull requests**, **Issues**, and **Workflows**. |
+| `PUSH_TOKEN` | Secret | No | Fine-grained PAT (or GitHub App token) for this repo with read/write on **Contents**, **Pull requests**, **Issues**, and **Workflows**. |
 
-The built-in `GITHUB_TOKEN` cannot push changes to `.github/workflows/`, so issues that modify the pipeline itself would fail. It also cannot trigger CI on the PRs it opens. `PUSH_TOKEN` fixes both. Comments and PRs are attributed to the token's owner.
+Without `PUSH_TOKEN` the workflow falls back to the built-in `GITHUB_TOKEN`, which can modify normal repo files but cannot push changes to `.github/workflows/` and does not trigger CI on the PRs it opens. Set `PUSH_TOKEN` to allow both, so issues can also modify the pipeline itself. Comments and PRs are attributed to the token's owner.
 
 Because this token can edit workflows and the run is started by issue text, keep the trusted-author check (`author_association`) in the workflow and review PRs before merging.
 
