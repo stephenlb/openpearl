@@ -2,29 +2,23 @@
 
 Ideas for improving the OpenPearl workflow (`.github/workflows/issue-to-pr.yml`).
 
-## Quality
+## Implemented
 
-- **Run the project's tests in CI before the eval.** Feed the real pass/fail result to the eval gate instead of relying on Claude's judgment that tests "don't appear to fail".
-- **Use a separate reviewer context.** Run review rounds with a fresh session (or a different model) so the reviewer isn't anchored by the implementer's reasoning.
-- **Ground the eval in evidence.** Pass the test output, linter output, and diff stats to the eval, and require it to cite them in its justification.
-- **Diff-size guardrails.** Automatically hand off to a human when the diff exceeds a line or file threshold, or touches sensitive paths (`.github/workflows`, auth, secrets, dependency manifests).
-- **Clarify before coding.** If the issue is ambiguous, have Claude post clarifying questions and wait, instead of guessing.
+- **Project tests before the eval.** The `Run project tests` step runs `npm test` when a test script exists; failing tests block auto-merge and the results are given to the eval.
+- **Grounded eval.** The eval receives test output and diff stats and must cite its evidence.
+- **Diff-size and sensitive-path guardrails.** Auto-merge is blocked above `MAX_DIFF_FILES` / `MAX_DIFF_LINES` (repo variables, default 20 / 500) or when the diff touches `.github/`, auth/secrets paths, or dependency manifests.
+- **Retry transient failures.** All Claude CLI calls go through `claude-retry` (3 attempts with backoff).
+- **Label PRs.** `auto-merged` / `needs-human` labels are applied.
+- **Project guidance.** Prompts tell Claude to follow `CLAUDE.md` / `AGENTS.md`; `.github/evals-extra.md` adds per-repo eval criteria.
+- **Richer summaries.** The final issue comment lists review-round results and test status; a `NO` verdict includes the eval's reasoning.
+- **Dry-run mode.** Label an issue `dry-run` to open the PR without auto-merging.
+- **Configurable rounds.** Set the `REVIEW_ROUNDS` repo variable (default 2).
 
-## Reliability
+## Not yet implemented
 
-- **Retry transient failures.** Retry the Claude CLI steps on API errors or rate limits, with backoff/
+- **Use a separate reviewer context or model.** Review rounds already run in fresh sessions; using a different model is still open.
+- **Clarify before coding.** If the issue is ambiguous, post clarifying questions and wait.
 - **Resume on re-run.** Reuse the existing branch and PR if the workflow is triggered again for the same issue.
-
-## Feedback loop
-
-- **Re-run on PR feedback.** When a human comments on or requests changes to the PR, have Claude address it and push.
+- **Re-run on PR feedback.** Address human comments or change requests on the PR.
 - **React to CI failures.** Feed failing check logs back to Claude for a fix round before the eval.
-- **Track outcomes.** Log auto-merge vs. handed-off rates, and whether auto-merged PRs are later reverted, to tune the eval's strictness.
-- **Label PRs.** Apply labels such as `auto-merged` / `needs-human` for easy filtering.
-
-## Developer experience
-
-- **Project-specific guidance.** Read a `CLAUDE.md`/`AGENTS.md` if it exists for conventions, and allow per-repo customization of the eval criteria.
-- **Richer summaries.** Include in the issue comment what was changed, what the review rounds found, and why the eval answered NO.
-- **Dry-run mode.** A label that makes the workflow open the PR but never auto-merge.
-- **Configurable rounds.** Make the number of review/fix rounds an input or repo variable instead of fixed at two.
+- **Track outcomes over time.** Outcomes are logged per run; aggregating them and detecting later reverts is still open.

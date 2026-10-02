@@ -28,6 +28,13 @@ env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
   ANTHROPIC_SMALL_FAST_MODEL: ${{ secrets.ANTHROPIC_SMALL_FAST_MODEL }}
+  # Repo variables (Settings > Variables) tune the workflow; defaults apply when unset
+  REVIEW_ROUNDS: ${{ vars.REVIEW_ROUNDS || '2' }}
+  MAX_DIFF_LINES: ${{ vars.MAX_DIFF_LINES || '500' }}
+  MAX_DIFF_FILES: ${{ vars.MAX_DIFF_FILES || '20' }}
+  # Label an issue with "dry-run" to open the PR but never auto-merge it
+  DRY_RUN: ${{ contains(github.event.issue.labels.*.name, 'dry-run') }}
+  GUIDANCE: "If CLAUDE.md or AGENTS.md exists in the repository root, read it first and follow the conventions it describes."
   TOOLS_EDIT: "Read,Edit,Write,Glob,Grep,Bash(git diff:*),Bash(git status:*),Bash(git log:*),Bash(ls:*),Bash(npm:*),Bash(npx:*)"
   TOOLS_REVIEW: "Read,Glob,Grep,Bash(git diff:*),Bash(git log:*),Bash(git status:*)"
 
@@ -57,6 +64,27 @@ jobs:
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
 
+      - name: Install retry wrapper for Claude CLI
+        run: |
+          # Retries transient failures (API errors, rate limits) with backoff.
+          # Output is buffered so a failed attempt never leaks partial output.
+          mkdir -p "$RUNNER_TEMP/bin"
+          cat > "$RUNNER_TEMP/bin/claude-retry" <<'SCRIPT'
+          #!/usr/bin/env bash
+          out=$(mktemp)
+          for attempt in 1 2 3; do
+            if claude "$@" > "$out"; then
+              cat "$out"; rm -f "$out"; exit 0
+            fi
+            echo "claude failed (attempt $attempt/3)" >&2
+            [ "$attempt" -lt 3 ] && sleep $((attempt * 20))
+          done
+          rm -f "$out"
+          exit 1
+          SCRIPT
+          chmod +x "$RUNNER_TEMP/bin/claude-retry"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
       - name: Configure git
         run: |
           git config user.name "claude[bot]"
@@ -69,7 +97,7 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
           printf '# %s\n\n%s\n' "$ISSUE_TITLE" "$ISSUE_BODY" > "$RUNNER_TEMP/task.md"
-          if claude -p "Read the GitHub issue in $RUNNER_TEMP/task.md and summarize the work to be implemented in 2-4 concise markdown bullet points. Output only the bullets." \
+          if claude-retry -p "Read the GitHub issue in $RUNNER_TEMP/task.md and summarize the work to be implemented in 2-4 concise markdown bullet points. Output only the bullets." \
               --allowedTools "Read($RUNNER_TEMP/**)" --max-turns 5 > "$RUNNER_TEMP/task-summary.md" \
               && [ -s "$RUNNER_TEMP/task-summary.md" ]; then
             :
@@ -121,6 +149,7 @@ jobs:
             echo "You are implementing GitHub issue #$ISSUE_NUMBER in this repository."
             echo "Modify the codebase to resolve it. Follow existing conventions, add or update tests where appropriate."
             echo "Do not run git commit or git push; that is handled for you."
+            echo "$GUIDANCE"
             echo
             echo "# $ISSUE_TITLE"
             echo
@@ -133,7 +162,7 @@ jobs:
               for f in $images; do echo "- $img_dir/$f"; done
             fi
           } > "$RUNNER_TEMP/prompt.md"
-          claude -p "$(cat "$RUNNER_TEMP/prompt.md")" \
+          claude-retry -p "$(cat "$RUNNER_TEMP/prompt.md")" \
             --permission-mode acceptEdits \
             --allowedTools "$TOOLS_EDIT,Read($RUNNER_TEMP/issue-images/**)" \
             --max-turns 60
@@ -169,22 +198,25 @@ jobs:
         env:
           ISSUE_TITLE: ${{ github.event.issue.title }}
         run: |
+          # Clamp to a positive integer for this and later steps
+          [[ "$REVIEW_ROUNDS" =~ ^[1-9][0-9]*$ ]] || REVIEW_ROUNDS=2
+          echo "REVIEW_ROUNDS=$REVIEW_ROUNDS" >> "$GITHUB_ENV"
           url=$(gh pr create \
             --base "$BASE" --head "$BRANCH" \
             --title "$ISSUE_TITLE" \
             --body "Closes #$ISSUE_NUMBER")
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "number=${url##*/}" >> "$GITHUB_OUTPUT"
-          gh issue comment "$ISSUE_NUMBER" --body "Opened PR $url. Starting automated code review (2 rounds)..."
+          gh issue comment "$ISSUE_NUMBER" --body "Opened PR $url. Starting automated code review ($REVIEW_ROUNDS rounds)..."
 
-      - name: Review and fix (2 rounds)
+      - name: Review and fix
         if: steps.commit.outputs.changed == 'true'
         env:
           PR_NUMBER: ${{ steps.pr.outputs.number }}
         run: |
-          for round in 1 2; do
+          for round in $(seq 1 "$REVIEW_ROUNDS"); do
             echo "::group::Review round $round"
-            claude -p "Code review the changes on this branch: run 'git diff origin/$BASE...HEAD'. Look for correctness bugs, missing tests, security issues, and clear maintainability problems. Output a concise markdown list of concrete findings with file and line, most severe first. If there is nothing worth fixing, output exactly: NO ISSUES" \
+            claude-retry -p "$GUIDANCE Code review the changes on this branch: run 'git diff origin/$BASE...HEAD'. Look for correctness bugs, missing tests, security issues, and clear maintainability problems. Output a concise markdown list of concrete findings with file and line, most severe first. If there is nothing worth fixing, output exactly: NO ISSUES" \
               --allowedTools "$TOOLS_REVIEW" > "$RUNNER_TEMP/review-$round.md"
             cat "$RUNNER_TEMP/review-$round.md"
             echo "::endgroup::"
@@ -203,7 +235,7 @@ jobs:
             gh issue comment "$ISSUE_NUMBER" --body "Code review round $round found issues; applying fixes..."
 
             echo "::group::Fix round $round"
-            claude -p "Apply fixes for the findings in $RUNNER_TEMP/review-$round.md to this codebase. Skip any finding that is incorrect. Do not run git commit or git push." \
+            claude-retry -p "$GUIDANCE Apply fixes for the findings in $RUNNER_TEMP/review-$round.md to this codebase. Skip any finding that is incorrect. Do not run git commit or git push." \
               --permission-mode acceptEdits \
               --allowedTools "$TOOLS_EDIT,Read($RUNNER_TEMP/**)" \
               --max-turns 40
@@ -219,13 +251,44 @@ jobs:
       - name: Summarize completed work
         if: steps.commit.outputs.changed == 'true'
         run: |
-          if claude -p "Run 'git diff origin/$BASE...HEAD' and summarize the work completed in 3-6 concise markdown bullet points. Output only the bullets." \
+          if claude-retry -p "Run 'git diff origin/$BASE...HEAD' and summarize the work completed in 3-6 concise markdown bullet points. Output only the bullets." \
               --allowedTools "$TOOLS_REVIEW" --max-turns 10 > "$RUNNER_TEMP/done-summary.md" \
               && [ -s "$RUNNER_TEMP/done-summary.md" ]; then
             :
           else
             echo "_Summary unavailable; see the PR for details._" > "$RUNNER_TEMP/done-summary.md"
           fi
+
+      - name: Run project tests
+        if: steps.commit.outputs.changed == 'true'
+        id: tests
+        run: |
+          # status: pass | fail | none (no test script found)
+          status=none
+          # All pushes are done; drop checkout credentials so branch code cannot read the token from .git/config
+          git config --local --get-regexp '^http\..*\.extraheader$' | cut -d' ' -f1 | while read -r key; do
+            git config --local --unset-all "$key"
+          done || true
+          if [ -f package.json ] && node -e 'process.exit(require("./package.json").scripts?.test ? 0 : 1)'; then
+            # Run untrusted branch code without secrets or lifecycle scripts
+            clean() { env -i PATH="$PATH" HOME="$HOME" CI=true "$@"; }
+            if { [ -f package-lock.json ] && clean npm ci --ignore-scripts || clean npm install --ignore-scripts; } > "$RUNNER_TEMP/tests.md" 2>&1 \
+              && clean npm test >> "$RUNNER_TEMP/tests.md" 2>&1; then
+              status=pass
+            else
+              status=fail
+            fi
+            # Keep the tail: that is where failures are reported
+            tail -n 200 "$RUNNER_TEMP/tests.md" > "$RUNNER_TEMP/tests-tail.md"
+            mv "$RUNNER_TEMP/tests-tail.md" "$RUNNER_TEMP/tests.md"
+          else
+            echo "No test script found." > "$RUNNER_TEMP/tests.md"
+          fi
+          echo "Test status: $status" | tee -a "$RUNNER_TEMP/tests.md"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          # Tests may have generated files (node_modules, lockfiles); restore the tree so nothing leaks into later steps
+          git checkout -- .
+          git clean -fdq
 
       - name: Eval - PR ready to auto-merge
         if: steps.commit.outputs.changed == 'true'
@@ -234,29 +297,51 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
           PR_URL: ${{ steps.pr.outputs.url }}
           PR_NUMBER: ${{ steps.pr.outputs.number }}
+          TEST_STATUS: ${{ steps.tests.outputs.status }}
         run: |
           gh issue comment "$ISSUE_NUMBER" --body "Running final eval to decide whether PR $PR_URL is safe to auto-merge..."
           printf '# %s\n\n%s\n' "$ISSUE_TITLE" "$ISSUE_BODY" > "$RUNNER_TEMP/issue.md"
 
-          # Final review-only pass so the round-2 fixes are also reviewed
-          claude -p "Code review the changes on this branch: run 'git diff origin/$BASE...HEAD'. Look for correctness bugs, security issues, and clear maintainability problems. Output a concise markdown list of concrete findings with file and line, most severe first. If there is nothing worth fixing, output exactly: NO ISSUES" \
-            --allowedTools "$TOOLS_REVIEW" > "$RUNNER_TEMP/review-3.md" || echo "Final review failed" > "$RUNNER_TEMP/review-3.md"
-          final_clean=false
-          grep -qx "NO ISSUES" "$RUNNER_TEMP/review-3.md" && final_clean=true
+          # Evidence for the eval: diff stats and real test results
+          git diff --stat "origin/$BASE...HEAD" > "$RUNNER_TEMP/diffstat.md"
 
-          # Deterministic guard: never auto-merge changes to workflows
-          protected=$(git diff --name-only "origin/$BASE...HEAD" | grep -E '^\.github/' || true)
+          # Final review-only pass so the last round of fixes is also reviewed
+          claude-retry -p "$GUIDANCE Code review the changes on this branch: run 'git diff origin/$BASE...HEAD'. Look for correctness bugs, security issues, and clear maintainability problems. Output a concise markdown list of concrete findings with file and line, most severe first. If there is nothing worth fixing, output exactly: NO ISSUES" \
+            --allowedTools "$TOOLS_REVIEW" > "$RUNNER_TEMP/review-final.md" || echo "Final review failed" > "$RUNNER_TEMP/review-final.md"
+          final_clean=false
+          grep -qx "NO ISSUES" "$RUNNER_TEMP/review-final.md" && final_clean=true
+
+          # Deterministic guard: never auto-merge changes to workflows, auth/secrets, or dependency manifests
+          protected=$(git diff --name-only "origin/$BASE...HEAD" \
+            | grep -Eiv '(^|/)node_modules/' \
+            | grep -Ei '^\.github/|(^|/)(auth|secrets?|credentials?)([/._-]|$)|(^|/)\.env|(^|/)(package(-lock)?\.json|yarn\.lock|pnpm-lock\.yaml|requirements[^/]*\.txt|Pipfile(\.lock)?|poetry\.lock|go\.(mod|sum)|Cargo\.(toml|lock)|Gemfile(\.lock)?|pom\.xml|build\.gradle)$' || true)
+          # Deterministic guard: large diffs need a human
+          diff_files=$(git diff --name-only "origin/$BASE...HEAD" | wc -l)
+          diff_lines=$(git diff --numstat "origin/$BASE...HEAD" | awk '{ if ($1 != "-") n += $1 + $2 } END { print n + 0 }')
+
+          # Fail closed on invalid limits
+          [[ "$MAX_DIFF_FILES" =~ ^[1-9][0-9]*$ ]] || MAX_DIFF_FILES=20
+          [[ "$MAX_DIFF_LINES" =~ ^[1-9][0-9]*$ ]] || MAX_DIFF_LINES=500
 
           verdict=NO
-          if [ -n "$protected" ]; then
-            printf 'Auto-merge blocked: diff touches protected paths:\n%s\n' "$protected" > "$RUNNER_TEMP/eval.md"
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "Auto-merge skipped: dry-run label is set" > "$RUNNER_TEMP/eval.md"
+          elif [ -n "$protected" ]; then
+            printf 'Auto-merge blocked: diff touches sensitive paths:\n%s\n' "$protected" > "$RUNNER_TEMP/eval.md"
+          elif [ "$diff_files" -gt "$MAX_DIFF_FILES" ] || [ "$diff_lines" -gt "$MAX_DIFF_LINES" ]; then
+            echo "Auto-merge blocked: diff is too large ($diff_files files, $diff_lines lines; limits $MAX_DIFF_FILES files, $MAX_DIFF_LINES lines)" > "$RUNNER_TEMP/eval.md"
+          elif [ "$TEST_STATUS" = "fail" ]; then
+            echo "Auto-merge blocked: project tests failed" > "$RUNNER_TEMP/eval.md"
           elif [ "$final_clean" != "true" ]; then
             echo "Auto-merge blocked: final review did not report NO ISSUES" > "$RUNNER_TEMP/eval.md"
-          elif claude -p "$(cat .github/workflows/evals/pr-ready-to-merge.md)
+          elif claude-retry -p "$(cat .github/workflows/evals/pr-ready-to-merge.md)
+          $(cat .github/evals-extra.md 2>/dev/null)
 
           Base branch: origin/$BASE
           Issue file: $RUNNER_TEMP/issue.md
-          Review files: $RUNNER_TEMP/review-1.md, $RUNNER_TEMP/review-2.md, $RUNNER_TEMP/review-3.md (review-3 is the final review of the fixed code and takes precedence)" \
+          Review files: $RUNNER_TEMP/review-*.md (review-final.md is the review of the fixed code and takes precedence)
+          Test results file: $RUNNER_TEMP/tests.md (test status: $TEST_STATUS)
+          Diff stats file: $RUNNER_TEMP/diffstat.md" \
             --allowedTools "$TOOLS_REVIEW,Read($RUNNER_TEMP/**)" \
             --max-turns 20 > "$RUNNER_TEMP/eval.md"; then
             # Fail closed: only a final line of exactly YES (surrounding whitespace ignored) merges
@@ -273,18 +358,32 @@ jobs:
           $(cat "$RUNNER_TEMP/eval.md")
           EOF
 
+          # Label PRs for easy filtering and outcome tracking (best effort)
+          label() {
+            gh label create "$1" --color "$2" --force >/dev/null 2>&1 || true
+            gh pr edit "$PR_NUMBER" --add-label "$1" >/dev/null 2>&1 || true
+          }
+          echo "Outcome tracking: issue=$ISSUE_NUMBER pr=$PR_NUMBER verdict=$verdict dry_run=$DRY_RUN tests=$TEST_STATUS"
+
           if [ "$verdict" = "YES" ]; then
             gh issue comment "$ISSUE_NUMBER" --body "Auto-merge eval: YES. Waiting for CI on $PR_URL..."
             # `gh pr checks` exits non-zero when a PR has no checks, so only watch if some exist
             check_count=$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup | length')
             if { [ "$check_count" = "0" ] || gh pr checks "$PR_NUMBER" --watch --fail-fast; } \
               && gh pr merge "$PR_NUMBER" --squash --delete-branch; then
+              label auto-merged 0e8a16
               gh issue comment "$ISSUE_NUMBER" --body "PR Auto-Merged: $PR_URL"
             else
+              label needs-human d93f0b
               gh issue comment "$ISSUE_NUMBER" --body "Auto-merge failed (checks failing or merge blocked). PR Ready for Review: $PR_URL"
             fi
           else
-            gh issue comment "$ISSUE_NUMBER" --body "Auto-merge eval: NO. PR Ready for Review: $PR_URL"
+            label needs-human d93f0b
+            gh issue comment "$ISSUE_NUMBER" --body "Auto-merge eval: NO. PR Ready for Review: $PR_URL
+
+          Reason:
+
+          $(cat "$RUNNER_TEMP/eval.md")"
           fi
 
       - name: Comment with summary of work completed
@@ -295,6 +394,17 @@ jobs:
           ## Summary of work completed
 
           $(cat "$RUNNER_TEMP/done-summary.md")
+
+          ### Review rounds
+
+          $(for f in "$RUNNER_TEMP"/review-*.md; do
+            [ -f "$f" ] || continue
+            if grep -qx "NO ISSUES" "$f"; then echo "- $(basename "$f" .md): no issues"; elif grep -q "Final review failed" "$f"; then echo "- $(basename "$f" .md): review failed"; else echo "- $(basename "$f" .md): $(grep -cE '^\s*([-*]|[0-9]+\.)' "$f") finding(s)"; fi
+          done)
+
+          ### Tests
+
+          ${{ steps.tests.outputs.status || 'not run' }}
           EOF
 
       - name: Report failure

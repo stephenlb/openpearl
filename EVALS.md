@@ -6,8 +6,8 @@ An eval is a prompt file in `.github/workflows/evals/` that Claude runs inside `
 
 The step **Eval - PR ready to auto-merge** in `issue-to-pr.yml`:
 
-1. Writes the issue to `$RUNNER_TEMP/issue.md` and runs a final code review into `$RUNNER_TEMP/review-3.md`.
-2. Applies deterministic guards first (diff touches `.github/`, final review not clean). If one fails, the verdict is `NO` and Claude is not called.
+1. Writes the issue to `$RUNNER_TEMP/issue.md` and runs a final code review into `$RUNNER_TEMP/review-final.md`. Project test results (`tests.md`) and diff stats (`diffstat.md`) are also written there as evidence.
+2. Applies deterministic guards first (dry-run label, diff touches sensitive paths such as `.github/`, auth/secrets or dependency manifests, diff larger than `MAX_DIFF_FILES`/`MAX_DIFF_LINES`, failing tests, final review not clean). If one fails, the verdict is `NO` and Claude is not called. Optional extra criteria in `.github/evals-extra.md` are appended to the eval prompt.
 3. Otherwise runs `claude -p` with the eval file's contents plus the paths of the input files.
 4. Reads the last non-empty line of the output. Only exactly `YES` passes; anything else, including a failed command, counts as `NO` (fail closed).
 5. Posts the output as a PR comment and acts on the verdict.
