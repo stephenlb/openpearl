@@ -4,7 +4,7 @@ From Ticket to PR software delivery pipeline. Reads ticket, implements, PR, Code
 
 ## Setup
 
-The workflow in `.github/workflows/issue-to-pr.yml` runs when an issue is opened by an owner, member, or collaborator. Claude Code implements the issue, opens a PR, runs two review/fix rounds, comments "ready to go", then runs the eval in `.github/workflows/evals/pr-ready-to-merge.md`. If Claude answers `YES` the PR is squash-merged automatically; anything else leaves it open for a human.
+The workflow in `.github/workflows/issue-to-pr.yml` runs when an issue is opened by an owner, member, or collaborator. Claude Code implements the issue, opens a PR, runs two review/fix rounds, then runs the eval in `.github/workflows/evals/pr-ready-to-merge.md`. If Claude answers `YES` the PR is squash-merged automatically and the issue gets a "PR Auto-Merged: …" comment; anything else leaves it open for a human and the issue gets a "PR Ready for Review: …" comment.
 
 Enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**.
 

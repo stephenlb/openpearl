@@ -197,15 +197,6 @@ jobs:
             fi
           done
 
-      - name: Final comments
-        if: steps.commit.outputs.changed == 'true'
-        env:
-          PR_URL: ${{ steps.pr.outputs.url }}
-          PR_NUMBER: ${{ steps.pr.outputs.number }}
-        run: |
-          gh issue comment "$ISSUE_NUMBER" --body "I opened a PR for this issue: $PR_URL"
-          gh pr comment "$PR_NUMBER" --body "ready to go"
-
       - name: Eval - PR ready to auto-merge
         if: steps.commit.outputs.changed == 'true'
         env:
@@ -256,12 +247,12 @@ jobs:
             gh issue comment "$ISSUE_NUMBER" --body "Auto-merge eval: YES. Waiting for CI on $PR_URL..."
             if gh pr checks "$PR_NUMBER" --watch --fail-fast \
               && gh pr merge "$PR_NUMBER" --squash --delete-branch; then
-              gh issue comment "$ISSUE_NUMBER" --body "Merged $PR_URL."
+              gh issue comment "$ISSUE_NUMBER" --body "PR Auto-Merged: $PR_URL"
             else
-              gh issue comment "$ISSUE_NUMBER" --body "Auto-merge failed (checks failing/missing or merge blocked). Leaving $PR_URL open for human review."
+              gh issue comment "$ISSUE_NUMBER" --body "Auto-merge failed (checks failing/missing or merge blocked). PR Ready for Review: $PR_URL"
             fi
           else
-            gh issue comment "$ISSUE_NUMBER" --body "Auto-merge eval: NO. Leaving $PR_URL open for human review."
+            gh issue comment "$ISSUE_NUMBER" --body "Auto-merge eval: NO. PR Ready for Review: $PR_URL"
           fi
 
       - name: Report failure
