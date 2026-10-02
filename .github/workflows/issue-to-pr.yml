@@ -206,6 +206,41 @@ jobs:
           gh issue comment "$ISSUE_NUMBER" --body "I opened a PR for this issue: $PR_URL"
           gh pr comment "$PR_NUMBER" --body "ready to go"
 
+      - name: Eval - PR ready to auto-merge
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          PR_URL: ${{ steps.pr.outputs.url }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "Running final eval to decide whether PR $PR_URL is safe to auto-merge..."
+          printf '# %s\n\n%s\n' "$ISSUE_TITLE" "$ISSUE_BODY" > "$RUNNER_TEMP/issue.md"
+          claude -p "$(cat .github/workflows/evals/pr-ready-to-merge.md)
+
+          Base branch: origin/$BASE
+          Issue file: $RUNNER_TEMP/issue.md
+          Review files: $RUNNER_TEMP/review-1.md, $RUNNER_TEMP/review-2.md" \
+            --allowedTools "$TOOLS_REVIEW,Read($RUNNER_TEMP/**)" \
+            --max-turns 20 > "$RUNNER_TEMP/eval.md"
+          cat "$RUNNER_TEMP/eval.md"
+
+          # Fail closed: only an exact final line of YES merges
+          verdict=$(grep -v '^[[:space:]]*$' "$RUNNER_TEMP/eval.md" | tail -n 1 | tr -d '[:space:]')
+
+          gh pr comment "$PR_NUMBER" --body-file - <<EOF
+          ## Auto-merge eval
+
+          $(cat "$RUNNER_TEMP/eval.md")
+          EOF
+
+          if [ "$verdict" = "YES" ]; then
+            gh issue comment "$ISSUE_NUMBER" --body "Auto-merge eval: YES. Merging $PR_URL."
+            gh pr merge "$PR_NUMBER" --squash --delete-branch
+          else
+            gh issue comment "$ISSUE_NUMBER" --body "Auto-merge eval: NO. Leaving $PR_URL open for human review."
+          fi
+
       - name: Report failure
         if: failure()
         run: |
