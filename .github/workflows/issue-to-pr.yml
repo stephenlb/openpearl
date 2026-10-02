@@ -110,7 +110,7 @@ jobs:
                 # the later --output deny rules keep git diff/log from writing files.
                 ext="\"external_directory\":{\"$RUNNER_TEMP/**\":\"allow\"}"
                 if [ "$mode" = edit ]; then
-                  export OPENCODE_PERMISSION='{"edit":"allow",'"$ext"',"bash":{"*":"deny","git diff*":"allow","git log*":"allow","git status*":"allow","ls*":"allow","npm*":"allow","npx*":"allow","cp *":"allow","identify*":"allow","convert*":"allow","magick*":"allow","git diff*--output*":"deny","git log*--output*":"deny"},"webfetch":"deny"}'
+                  export OPENCODE_PERMISSION='{"edit":"allow",'"$ext"',"bash":{"*":"deny","git diff*":"allow","git log*":"allow","git status*":"allow","ls*":"allow","npm*":"allow","npx*":"allow","cp *":"allow","identify *":"allow","convert *":"allow","magick *":"allow","git diff*--output*":"deny","git log*--output*":"deny"},"webfetch":"deny"}'
                 else
                   export OPENCODE_PERMISSION='{"edit":"deny","webfetch":"deny",'"$ext"',"bash":{"*":"deny","git diff*":"allow","git log*":"allow","git status*":"allow","git diff*--output*":"deny","git log*--output*":"deny"}}'
                 fi
@@ -225,6 +225,7 @@ jobs:
               for f in $images; do echo "- $img_dir/$f ($(identify -format '%wx%h' "$img_dir/$f[0]" 2>/dev/null || echo 'unknown size'))"; done
               echo "When the issue asks to use an attached image (e.g. as a favicon or logo), use that image itself: copy it into the repo and process it as needed."
               echo "Do not substitute an existing repo image. ImageMagick (identify, convert) is available to crop, resize or convert formats."
+              echo "If the attached image cannot be used (missing, unreadable, unsuitable), say so instead of guessing or substituting another image."
               echo "A favicon should be square, PNG or ICO, 32x32 to 256x256, with the <link rel=\"icon\"> type matching the file format."
             fi
           } > "$RUNNER_TEMP/prompt.md"
