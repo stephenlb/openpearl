@@ -100,10 +100,13 @@ jobs:
                 claude "${args[@]}"
                 ;;
               opencode)
+                # external_directory lets the agent read the issue/review files in $RUNNER_TEMP;
+                # the later --output deny rules keep git diff/log from writing files.
+                ext="\"external_directory\":{\"$RUNNER_TEMP/**\":\"allow\"}"
                 if [ "$mode" = edit ]; then
-                  export OPENCODE_PERMISSION='{"edit":"allow","bash":{"*":"deny","git diff*":"allow","git log*":"allow","git status*":"allow","ls*":"allow","npm*":"allow","npx*":"allow"},"webfetch":"deny"}'
+                  export OPENCODE_PERMISSION='{"edit":"allow",'"$ext"',"bash":{"*":"deny","git diff*":"allow","git log*":"allow","git status*":"allow","ls*":"allow","npm*":"allow","npx*":"allow","git diff*--output*":"deny","git log*--output*":"deny"},"webfetch":"deny"}'
                 else
-                  export OPENCODE_PERMISSION='{"edit":"deny","webfetch":"deny","bash":{"*":"deny","git diff*":"allow","git log*":"allow","git status*":"allow"}}'
+                  export OPENCODE_PERMISSION='{"edit":"deny","webfetch":"deny",'"$ext"',"bash":{"*":"deny","git diff*":"allow","git log*":"allow","git status*":"allow","git diff*--output*":"deny","git log*--output*":"deny"}}'
                 fi
                 args=(run)
                 [ -n "$AGENT_MODEL" ] && args+=(-m "$AGENT_MODEL")
