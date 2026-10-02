@@ -42,6 +42,7 @@ env:
   DRY_RUN: ${{ contains(github.event.issue.labels.*.name, 'dry-run') }}
   GUIDANCE: "If CLAUDE.md or AGENTS.md exists in the repository root, read it first and follow the conventions it describes."
   TOOLS_EDIT: "Read,Edit,Write,Glob,Grep,Bash(git diff:*),Bash(git status:*),Bash(git log:*),Bash(ls:*),Bash(npm:*),Bash(npx:*)"
+  REVIEW_PROMPT: "Code review the changes on this branch: run 'git diff origin/${{ github.event.repository.default_branch }}...HEAD'. Look for correctness bugs, missing tests, security issues, and clear maintainability problems. Output a concise markdown list of concrete findings with file and line, most severe first. If there is nothing worth fixing, output exactly: NO ISSUES"
   TOOLS_REVIEW: "Read,Glob,Grep,Bash(git diff:*),Bash(git log:*),Bash(git status:*)"
 
 jobs:
@@ -152,21 +153,14 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
           printf '# %s\n\n%s\n' "$ISSUE_TITLE" "$ISSUE_BODY" > "$RUNNER_TEMP/task.md"
-          if agent-retry read "Read the GitHub issue in $RUNNER_TEMP/task.md and summarize the work to be implemented in 2-4 concise markdown bullet points. Output only the bullets." 5 > "$RUNNER_TEMP/task-summary.md" \
-              && [ -s "$RUNNER_TEMP/task-summary.md" ]; then
-            :
-          else
-            echo "_Summary unavailable; see the issue description._" > "$RUNNER_TEMP/task-summary.md"
-          fi
+          agent-retry read "Read the GitHub issue in $RUNNER_TEMP/task.md and summarize the work to be implemented in 2-4 concise markdown bullet points. Output only the bullets." 5 > "$RUNNER_TEMP/task-summary.md" \
+            && [ -s "$RUNNER_TEMP/task-summary.md" ] \
+            || echo "_Summary unavailable; see the issue description._" > "$RUNNER_TEMP/task-summary.md"
           gh issue comment "$ISSUE_NUMBER" --body-file - <<EOF
           ## Task summary
 
           $(cat "$RUNNER_TEMP/task-summary.md")
           EOF
-
-      - name: Comment that implementation started
-        run: |
-          gh issue comment "$ISSUE_NUMBER" --body "Analyzing the issue and implementing changes..."
 
       - name: Implement issue
         env:
@@ -175,6 +169,7 @@ jobs:
           # Read-only token for image downloads; the push PAT is not needed here
           DL_TOKEN: ${{ github.token }}
         run: |
+          gh issue comment "$ISSUE_NUMBER" --body "Analyzing the issue and implementing changes..."
           # Download images attached to the issue so Claude can view them with Read
           img_dir="$RUNNER_TEMP/issue-images"
           mkdir -p "$img_dir"
@@ -225,23 +220,15 @@ jobs:
         run: |
           if [ -z "$(git status --porcelain)" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
+            gh issue comment "$ISSUE_NUMBER" \
+              --body "The agent ran but made no changes, so no PR was opened. See the [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
             exit 0
           fi
           git add -A
           git commit -m "Resolve #$ISSUE_NUMBER: $ISSUE_TITLE"
           git push -u origin "$BRANCH"
           echo "changed=true" >> "$GITHUB_OUTPUT"
-
-      - name: Comment that changes were pushed
-        if: steps.commit.outputs.changed == 'true'
-        run: |
           gh issue comment "$ISSUE_NUMBER" --body "Implementation complete; changes pushed to branch \`$BRANCH\`. Opening a PR..."
-
-      - name: Comment that no changes were made
-        if: steps.commit.outputs.changed == 'false'
-        run: |
-          gh issue comment "$ISSUE_NUMBER" \
-            --body "The agent ran but made no changes, so no PR was opened. See the [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
 
       - name: Open PR
         if: steps.commit.outputs.changed == 'true'
@@ -267,7 +254,7 @@ jobs:
         run: |
           for round in $(seq 1 "$REVIEW_ROUNDS"); do
             echo "::group::Review round $round"
-            agent-retry read "$GUIDANCE Code review the changes on this branch: run 'git diff origin/$BASE...HEAD'. Look for correctness bugs, missing tests, security issues, and clear maintainability problems. Output a concise markdown list of concrete findings with file and line, most severe first. If there is nothing worth fixing, output exactly: NO ISSUES" > "$RUNNER_TEMP/review-$round.md"
+            agent-retry read "$GUIDANCE $REVIEW_PROMPT" > "$RUNNER_TEMP/review-$round.md"
             cat "$RUNNER_TEMP/review-$round.md"
             echo "::endgroup::"
 
@@ -298,12 +285,8 @@ jobs:
       - name: Summarize completed work
         if: steps.commit.outputs.changed == 'true'
         run: |
-          if agent-retry read "Run 'git diff origin/$BASE...HEAD' and summarize the work completed in 3-6 concise markdown bullet points. Output only the bullets." 10 > "$RUNNER_TEMP/done-summary.md" \
-              && [ -s "$RUNNER_TEMP/done-summary.md" ]; then
-            :
-          else
-            echo "_Summary unavailable; see the PR for details._" > "$RUNNER_TEMP/done-summary.md"
-          fi
+          # The final summary step supplies the fallback if this is empty
+          agent-retry read "Run 'git diff origin/$BASE...HEAD' and summarize the work completed in 3-6 concise markdown bullet points. Output only the bullets." 10 > "$RUNNER_TEMP/done-summary.md" || true
 
       - name: Run project tests
         if: steps.commit.outputs.changed == 'true'
@@ -352,7 +335,7 @@ jobs:
           git diff --stat "origin/$BASE...HEAD" > "$RUNNER_TEMP/diffstat.md"
 
           # Final review-only pass so the last round of fixes is also reviewed
-          agent-retry read "$GUIDANCE Code review the changes on this branch: run 'git diff origin/$BASE...HEAD'. Look for correctness bugs, security issues, and clear maintainability problems. Output a concise markdown list of concrete findings with file and line, most severe first. If there is nothing worth fixing, output exactly: NO ISSUES" > "$RUNNER_TEMP/review-final.md" || echo "Final review failed" > "$RUNNER_TEMP/review-final.md"
+          agent-retry read "$GUIDANCE $REVIEW_PROMPT" > "$RUNNER_TEMP/review-final.md" || echo "Final review failed" > "$RUNNER_TEMP/review-final.md"
           final_clean=false
           grep -qx "NO ISSUES" "$RUNNER_TEMP/review-final.md" && final_clean=true
 
