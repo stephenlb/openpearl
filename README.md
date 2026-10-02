@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="1024" alt="OpenPearl logo" src="https://github.com/user-attachments/assets/8b8eedc6-24f3-49b4-9f6a-00534b648370" />
+  <img width="1024" alt="OpenPearl logo" src="https://github.com/user-attachments/assets/98dd96ba-9c18-4794-8a8c-664a349a3c71" />
 </p>
 
 <p align="center">
