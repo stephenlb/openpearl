@@ -1,8 +1,9 @@
 name: Jira to Issue
 
 on:
-  schedule:
-    - cron: "*/10 * * * *"
+  # Polling is off by default. To enable, uncomment the next 2 lines (after adding the Jira secrets).
+  # schedule:
+  #   - cron: "*/10 * * * *"
   workflow_dispatch:
 
 permissions:

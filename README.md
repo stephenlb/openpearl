@@ -59,7 +59,7 @@ Without `PUSH_TOKEN`, the workflow uses the built-in `GITHUB_TOKEN`. That token 
 
 Two workflows connect Jira to the pipeline:
 
-- `.github/workflows/jira-to-issue.yml` polls Jira every 10 minutes (or on manual dispatch) for "To Do" tickets in your projects. For each one it:
+- `.github/workflows/jira-to-issue.yml` polls Jira every 10 minutes for "To Do" tickets in your projects. For each one it:
   - creates a GitHub issue titled `[BLOCKS-475] <summary>`, which starts the normal flow,
   - comments on the Jira ticket with the issue link,
   - moves the ticket to "In Progress".
@@ -75,6 +75,8 @@ To set up, create an [Atlassian API token](https://id.atlassian.com/manage-profi
 | `JIRA_PROJECTS` | Variable | Yes | Comma-separated project keys, e.g. `BLOCKS,PLAT`. |
 | `JIRA_IN_PROGRESS_STATUS` | Variable | No | Transition applied to imported tickets. Defaults to `In Progress`. |
 | `PUSH_TOKEN` | Secret | Yes | See [GitHub token](#optional-github-token). Required so pipeline-created issues and comments trigger workflows. |
+
+Polling is disabled by default (the workflow only runs on manual dispatch). To enable it, uncomment the `schedule` lines at the top of `jira-to-issue.yml` and commit to `main`.
 
 Good to know:
 
