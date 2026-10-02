@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OpenPearl</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+  <nav>
+    <a class="brand" href="./">OpenPearl</a>
+    <h4>Docs</h4>
+    <a class="link active" href="./">Overview</a>
+    <a class="link" href="https://github.com/openpearl/openpearl">GitHub</a>
+    <a class="link" href="https://discord.gg/mygDNrQ7DJ">Discord</a>
+  </nav>
+  <main>
+    <h1>OpenPearl</h1>
+    <p class="lead">From ticket to auto-merge. Minimal GitHub workflow.</p>
+    <p>OpenPearl reads a ticket, implements it, opens a PR, reviews it in a loop and auto-merges. If it isn't confident, it hands the PR to a human.</p>
+    <h2>How it works</h2>
+    <p>When an owner, member, or collaborator opens an issue, <code>.github/workflows/issue-to-pr.yml</code> runs:</p>
+    <ol>
+      <li>The agent implements the issue and opens a PR.</li>
+      <li>The agent CLI runs two review/fix rounds.</li>
+      <li>The agent CLI runs the eval in <code>.github/workflows/evals/pr-ready-to-merge.md</code>. On <code>YES</code> the PR is squash-merged; otherwise it stays open for a human.</li>
+    </ol>
+    <p class="note">See the <a href="https://github.com/openpearl/openpearl#readme">README</a> for setup instructions.</p>
+  </main>
+</div>
+</body>
+</html>
