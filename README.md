@@ -9,7 +9,7 @@
 
 # OpenPearl
 
-From ticket to auto-merge. OpenPearl reads a ticket, implements it, opens a PR, reviews it, and merges and deploys automatically. If it isn't confident, it hands the PR to a human.
+From ticket to auto-merge. Minimal GitHub workflow. OpenPearl reads a ticket, implements it, opens a PR, reviews it in a loop and auto-merges. If it isn't confident, it hands the PR to a human.
 
 ## How it works
 
