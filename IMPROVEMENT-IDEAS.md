@@ -12,9 +12,7 @@ Ideas for improving the OpenPearl workflow (`.github/workflows/issue-to-pr.yml`)
 
 ## Reliability
 
-- **Retry transient failures.** Retry the Claude CLI steps on API errors or rate limits, with backoff.
-- **Timeouts and cost caps.** Set per-step timeouts and a maximum turn/token budget so a stuck run can't burn money.
-- **Concurrency control.** Use a `concurrency` group per issue so edits or re-opens don't start overlapping runs.
+- **Retry transient failures.** Retry the Claude CLI steps on API errors or rate limits, with backoff/
 - **Resume on re-run.** Reuse the existing branch and PR if the workflow is triggered again for the same issue.
 
 ## Feedback loop
@@ -26,7 +24,7 @@ Ideas for improving the OpenPearl workflow (`.github/workflows/issue-to-pr.yml`)
 
 ## Developer experience
 
-- **Project-specific guidance.** Read a `CLAUDE.md`/`AGENTS.md` for conventions, and allow per-repo customization of the eval criteria.
+- **Project-specific guidance.** Read a `CLAUDE.md`/`AGENTS.md` if it exists for conventions, and allow per-repo customization of the eval criteria.
 - **Richer summaries.** Include in the issue comment what was changed, what the review rounds found, and why the eval answered NO.
 - **Dry-run mode.** A label that makes the workflow open the PR but never auto-merge.
 - **Configurable rounds.** Make the number of review/fix rounds an input or repo variable instead of fixed at two.
