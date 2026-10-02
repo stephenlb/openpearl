@@ -43,7 +43,7 @@ jobs:
 
           jql="project in ($projects) AND statusCategory = \"To Do\" ORDER BY created ASC"
           jira -X POST "$base/rest/api/2/search/jql" \
-            -d "$(jq -n --arg jql "$jql" '{jql: $jql, fields: ["summary","description"], maxResults: 10}')" \
+            -d "$(jq -n --arg jql "$jql" '{jql: $jql, fields: ["summary","description"], maxResults: 100}')" \
             > "$RUNNER_TEMP/jira.json"
 
           jq -c '.issues[]' "$RUNNER_TEMP/jira.json" | while read -r ticket; do
@@ -51,11 +51,12 @@ jobs:
             title=$(jq -r '.fields.summary' <<<"$ticket")
             # Strip comment openers so the description cannot spoof the jira-key marker
             description=$(jq -r '.fields.description // ""' <<<"$ticket")
-            description="${description//<!--/}"
+            while [[ "$description" == *"<!--"* ]]; do description="${description//<!--/}"; done
             marker="jira-key: $key"
 
-            existing=$(gh issue list --state all --search "\"$marker\" in:body" --json number,body \
-              --jq "[.[] | select(.body | contains(\"<!-- $marker -->\"))][0].number // empty") \
+            # List instead of search: the search index lags, which would allow duplicates
+            existing=$(gh issue list --state all --limit 1000 --json number,title,body \
+              --jq "[.[] | select((.title | startswith(\"[$key] \")) or (.body | contains(\"<!-- $marker -->\")))][0].number // empty") \
               || { echo "::warning::Could not check existing issues for $key"; continue; }
             if [ -n "$existing" ]; then
               echo "$key already has GitHub issue #$existing"
