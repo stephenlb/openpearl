@@ -41,7 +41,7 @@ env:
   # Label an issue with "dry-run" to open the PR but never auto-merge it
   DRY_RUN: ${{ contains(github.event.issue.labels.*.name, 'dry-run') }}
   GUIDANCE: "If CLAUDE.md or AGENTS.md exists in the repository root, read it first and follow the conventions it describes."
-  TOOLS_EDIT: "Read,Edit,Write,Glob,Grep,Bash(git diff:*),Bash(git status:*),Bash(git log:*),Bash(ls:*),Bash(npm:*),Bash(npx:*),Bash(cp:*),Bash(identify:*),Bash(convert:*),Bash(magick:*)"
+  TOOLS_EDIT: "Read,Edit,Write,Glob,Grep,Bash(git diff:*),Bash(git status:*),Bash(git log:*),Bash(ls:*),Bash(npm:*),Bash(npx:*),Bash(cp:*),Bash(identify:*),Bash(convert:*)"
   REVIEW_PROMPT: "Code review the changes on this branch: run 'git diff origin/${{ github.event.repository.default_branch }}...HEAD'. Look for correctness bugs, missing tests, security issues, and clear maintainability problems. Output a concise markdown list of concrete findings with file and line, most severe first. If there is nothing worth fixing, output exactly: NO ISSUES"
   TOOLS_REVIEW: "Read,Glob,Grep,Bash(git diff:*),Bash(git log:*),Bash(git status:*)"
 
@@ -80,7 +80,10 @@ jobs:
       - name: Install image tools
         run: |
           # ImageMagick lets the agent crop, resize and convert attached images (e.g. favicons)
-          command -v convert >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick; }
+          { command -v convert >/dev/null && command -v identify >/dev/null; } || { sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick; }
+          # The images come from untrusted issue text: disable risky coders
+          pol=$(ls -d /etc/ImageMagick-*/ | head -n1)policy.xml
+          sudo sed -i 's#</policymap>#<policy domain="coder" rights="none" pattern="{MSL,MVG,URL,HTTPS,HTTP,FTP,EPHEMERAL,TEXT,LABEL,PS,PDF,EPS,XPS,SVG}" />\n</policymap>#' "$pol"
 
       - name: Install agent wrapper
         run: |
@@ -110,7 +113,7 @@ jobs:
                 # the later --output deny rules keep git diff/log from writing files.
                 ext="\"external_directory\":{\"$RUNNER_TEMP/**\":\"allow\"}"
                 if [ "$mode" = edit ]; then
-                  export OPENCODE_PERMISSION='{"edit":"allow",'"$ext"',"bash":{"*":"deny","git diff*":"allow","git log*":"allow","git status*":"allow","ls*":"allow","npm*":"allow","npx*":"allow","cp *":"allow","identify *":"allow","convert *":"allow","magick *":"allow","git diff*--output*":"deny","git log*--output*":"deny"},"webfetch":"deny"}'
+                  export OPENCODE_PERMISSION='{"edit":"allow",'"$ext"',"bash":{"*":"deny","git diff*":"allow","git log*":"allow","git status*":"allow","ls*":"allow","npm*":"allow","npx*":"allow","cp *":"allow","identify *":"allow","convert *":"allow","git diff*--output*":"deny","git log*--output*":"deny"},"webfetch":"deny"}'
                 else
                   export OPENCODE_PERMISSION='{"edit":"deny","webfetch":"deny",'"$ext"',"bash":{"*":"deny","git diff*":"allow","git log*":"allow","git status*":"allow","git diff*--output*":"deny","git log*--output*":"deny"}}'
                 fi
@@ -222,11 +225,13 @@ jobs:
               echo
               echo "# Attached images"
               echo "The issue references images, downloaded to the files below. Use Read to view them."
-              for f in $images; do echo "- $img_dir/$f ($(identify -format '%wx%h' "$img_dir/$f[0]" 2>/dev/null || echo 'unknown size'))"; done
+              for f in $images; do echo "- $img_dir/$f ($(identify -format '%wx%h' "$img_dir/$f[0]" || echo 'unknown size'))"; done
               echo "When the issue asks to use an attached image (e.g. as a favicon or logo), use that image itself: copy it into the repo and process it as needed."
               echo "Do not substitute an existing repo image. ImageMagick (identify, convert) is available to crop, resize or convert formats."
               echo "If the attached image cannot be used (missing, unreadable, unsuitable), say so instead of guessing or substituting another image."
-              echo "A favicon should be square, PNG or ICO, 32x32 to 256x256, with the <link rel=\"icon\"> type matching the file format."
+              if printf '%s\n%s' "$ISSUE_TITLE" "$ISSUE_BODY" | grep -qi favicon; then
+                echo "A favicon should be square, PNG or ICO, 32x32 to 256x256, with the <link rel=\"icon\"> type matching the file format."
+              fi
             fi
           } > "$RUNNER_TEMP/prompt.md"
           agent-retry edit "$(cat "$RUNNER_TEMP/prompt.md")" 60
