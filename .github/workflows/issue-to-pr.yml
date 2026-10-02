@@ -153,9 +153,7 @@ jobs:
           url=$(gh pr create \
             --base "$BASE" --head "$BRANCH" \
             --title "$ISSUE_TITLE" \
-            --body "Closes #$ISSUE_NUMBER
-
-          Automated implementation by Claude Code.")
+            --body "Closes #$ISSUE_NUMBER")
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "number=${url##*/}" >> "$GITHUB_OUTPUT"
           gh issue comment "$ISSUE_NUMBER" --body "Opened PR $url. Starting automated code review (2 rounds)..."
