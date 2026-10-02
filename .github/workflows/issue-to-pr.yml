@@ -1,0 +1,159 @@
+name: Issue to PR
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: issue-to-pr-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+env:
+  ISSUE_NUMBER: ${{ github.event.issue.number }}
+  BRANCH: claude/issue-${{ github.event.issue.number }}
+  BASE: ${{ github.event.repository.default_branch }}
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # Anthropic API auth (leave the secret unset when using Bedrock)
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  # Bedrock auth (set CLAUDE_CODE_USE_BEDROCK=1 as a repo variable to enable)
+  CLAUDE_CODE_USE_BEDROCK: ${{ vars.CLAUDE_CODE_USE_BEDROCK }}
+  AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
+  ANTHROPIC_SMALL_FAST_MODEL: ${{ vars.ANTHROPIC_SMALL_FAST_MODEL }}
+  TOOLS_EDIT: "Read,Edit,Write,Glob,Grep,Bash(git diff:*),Bash(git status:*),Bash(git log:*),Bash(ls:*),Bash(npm:*),Bash(npx:*)"
+  TOOLS_REVIEW: "Read,Glob,Grep,Bash(git diff:*),Bash(git log:*),Bash(git status:*)"
+
+jobs:
+  implement:
+    # Issue bodies are untrusted prompt input: only run for trusted authors.
+    if: contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Configure git
+        run: |
+          git config user.name "claude[bot]"
+          git config user.email "claude[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+
+      - name: Implement issue
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          {
+            echo "You are implementing GitHub issue #$ISSUE_NUMBER in this repository."
+            echo "Modify the codebase to resolve it. Follow existing conventions, add or update tests where appropriate."
+            echo "Do not run git commit or git push; that is handled for you."
+            echo
+            echo "# $ISSUE_TITLE"
+            echo
+            echo "$ISSUE_BODY"
+          } > "$RUNNER_TEMP/prompt.md"
+          claude -p "$(cat "$RUNNER_TEMP/prompt.md")" \
+            --permission-mode acceptEdits \
+            --allowedTools "$TOOLS_EDIT" \
+            --max-turns 60
+
+      - name: Commit and push
+        id: commit
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git add -A
+          git commit -m "Resolve #$ISSUE_NUMBER: $ISSUE_TITLE"
+          git push -u origin "$BRANCH"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Comment that no changes were made
+        if: steps.commit.outputs.changed == 'false'
+        run: |
+          gh issue comment "$ISSUE_NUMBER" \
+            --body "Claude ran but made no changes, so no PR was opened. See the [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
+
+      - name: Open PR
+        if: steps.commit.outputs.changed == 'true'
+        id: pr
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+        run: |
+          url=$(gh pr create \
+            --base "$BASE" --head "$BRANCH" \
+            --title "$ISSUE_TITLE" \
+            --body "Closes #$ISSUE_NUMBER
+
+          Automated implementation by Claude Code.")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "number=${url##*/}" >> "$GITHUB_OUTPUT"
+
+      - name: Review and fix (2 rounds)
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          for round in 1 2; do
+            echo "::group::Review round $round"
+            claude -p "Code review the changes on this branch: run 'git diff origin/$BASE...HEAD'. Look for correctness bugs, missing tests, security issues, and clear maintainability problems. Output a concise markdown list of concrete findings with file and line, most severe first. If there is nothing worth fixing, output exactly: NO ISSUES" \
+              --allowedTools "$TOOLS_REVIEW" > "$RUNNER_TEMP/review-$round.md"
+            cat "$RUNNER_TEMP/review-$round.md"
+            echo "::endgroup::"
+
+            gh pr comment "$PR_NUMBER" --body-file - <<EOF
+          ## Code review (round $round)
+
+          $(cat "$RUNNER_TEMP/review-$round.md")
+          EOF
+
+            if grep -qx "NO ISSUES" "$RUNNER_TEMP/review-$round.md"; then
+              continue
+            fi
+
+            echo "::group::Fix round $round"
+            claude -p "Apply fixes for the findings in $RUNNER_TEMP/review-$round.md to this codebase. Skip any finding that is incorrect. Do not run git commit or git push." \
+              --permission-mode acceptEdits \
+              --allowedTools "$TOOLS_EDIT,Read($RUNNER_TEMP/**)" \
+              --max-turns 40
+            echo "::endgroup::"
+
+            if [ -n "$(git status --porcelain)" ]; then
+              git add -A
+              git commit -m "Address code review feedback (round $round)"
+              git push
+            fi
+          done
+
+      - name: Final comments
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          PR_URL: ${{ steps.pr.outputs.url }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "I opened a PR for this issue: $PR_URL"
+          gh pr comment "$PR_NUMBER" --body "ready to go"
+
+      - name: Report failure
+        if: failure()
+        run: |
+          gh issue comment "$ISSUE_NUMBER" \
+            --body "The automated workflow failed. See the [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
