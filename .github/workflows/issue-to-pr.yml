@@ -28,6 +28,12 @@ env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
   ANTHROPIC_SMALL_FAST_MODEL: ${{ secrets.ANTHROPIC_SMALL_FAST_MODEL }}
+  # Agent CLI: claude (default), opencode, or codex. Set the AGENT_CLI repo variable to switch.
+  AGENT_CLI: ${{ vars.AGENT_CLI || 'claude' }}
+  # OpenAI auth for codex (and opencode with an OpenAI model)
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  # Optional model for opencode ("provider/model") or codex; claude uses ANTHROPIC_MODEL
+  AGENT_MODEL: ${{ secrets.AGENT_MODEL }}
   # Repo variables (Settings > Variables) tune the workflow; defaults apply when unset
   REVIEW_ROUNDS: ${{ vars.REVIEW_ROUNDS || '2' }}
   MAX_DIFF_LINES: ${{ vars.MAX_DIFF_LINES || '500' }}
@@ -61,28 +67,77 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code
-
-      - name: Install retry wrapper for Claude CLI
+      - name: Install agent CLI
         run: |
+          case "$AGENT_CLI" in
+            claude) npm install -g @anthropic-ai/claude-code ;;
+            opencode) npm install -g opencode-ai ;;
+            codex) npm install -g @openai/codex ;;
+            *) echo "Unsupported AGENT_CLI '$AGENT_CLI' (use claude, opencode, or codex)"; exit 1 ;;
+          esac
+
+      - name: Install agent wrapper
+        run: |
+          # Usage: agent-retry <read|edit> <prompt> [max-turns]
+          # Runs the selected agent CLI with read-only or edit permissions and prints its final answer.
           # Retries transient failures (API errors, rate limits) with backoff.
           # Output is buffered so a failed attempt never leaks partial output.
           mkdir -p "$RUNNER_TEMP/bin"
-          cat > "$RUNNER_TEMP/bin/claude-retry" <<'SCRIPT'
+          cat > "$RUNNER_TEMP/bin/agent-retry" <<'SCRIPT'
           #!/usr/bin/env bash
+          mode=$1 prompt=$2 turns=$3
           out=$(mktemp)
+          run_agent() {
+            case "$AGENT_CLI" in
+              claude)
+                args=(-p "$prompt")
+                if [ "$mode" = edit ]; then
+                  args+=(--permission-mode acceptEdits --allowedTools "$TOOLS_EDIT,Read($RUNNER_TEMP/**)")
+                else
+                  args+=(--allowedTools "$TOOLS_REVIEW,Read($RUNNER_TEMP/**)")
+                fi
+                [ -n "$turns" ] && args+=(--max-turns "$turns")
+                claude "${args[@]}"
+                ;;
+              opencode)
+                # external_directory lets the agent read the issue/review files in $RUNNER_TEMP;
+                # the later --output deny rules keep git diff/log from writing files.
+                ext="\"external_directory\":{\"$RUNNER_TEMP/**\":\"allow\"}"
+                if [ "$mode" = edit ]; then
+                  export OPENCODE_PERMISSION='{"edit":"allow",'"$ext"',"bash":{"*":"deny","git diff*":"allow","git log*":"allow","git status*":"allow","ls*":"allow","npm*":"allow","npx*":"allow","git diff*--output*":"deny","git log*--output*":"deny"},"webfetch":"deny"}'
+                else
+                  export OPENCODE_PERMISSION='{"edit":"deny","webfetch":"deny",'"$ext"',"bash":{"*":"deny","git diff*":"allow","git log*":"allow","git status*":"allow","git diff*--output*":"deny","git log*--output*":"deny"}}'
+                fi
+                args=(run)
+                [ -n "$AGENT_MODEL" ] && args+=(-m "$AGENT_MODEL")
+                opencode "${args[@]}" "$prompt"
+                ;;
+              codex)
+                export CODEX_API_KEY="${CODEX_API_KEY:-$OPENAI_API_KEY}"
+                local sandbox=read-only last rc
+                [ "$mode" = edit ] && sandbox=workspace-write
+                last=$(mktemp)
+                args=(exec --sandbox "$sandbox" --skip-git-repo-check --output-last-message "$last")
+                [ -n "$AGENT_MODEL" ] && args+=(-m "$AGENT_MODEL")
+                codex "${args[@]}" "$prompt" >&2
+                rc=$?
+                [ "$rc" -eq 0 ] && cat "$last"
+                rm -f "$last"
+                return $rc
+                ;;
+            esac
+          }
           for attempt in 1 2 3; do
-            if claude "$@" > "$out"; then
+            if run_agent > "$out"; then
               cat "$out"; rm -f "$out"; exit 0
             fi
-            echo "claude failed (attempt $attempt/3)" >&2
+            echo "$AGENT_CLI failed (attempt $attempt/3)" >&2
             [ "$attempt" -lt 3 ] && sleep $((attempt * 20))
           done
           rm -f "$out"
           exit 1
           SCRIPT
-          chmod +x "$RUNNER_TEMP/bin/claude-retry"
+          chmod +x "$RUNNER_TEMP/bin/agent-retry"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       - name: Configure git
@@ -97,8 +152,7 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
           printf '# %s\n\n%s\n' "$ISSUE_TITLE" "$ISSUE_BODY" > "$RUNNER_TEMP/task.md"
-          if claude-retry -p "Read the GitHub issue in $RUNNER_TEMP/task.md and summarize the work to be implemented in 2-4 concise markdown bullet points. Output only the bullets." \
-              --allowedTools "Read($RUNNER_TEMP/**)" --max-turns 5 > "$RUNNER_TEMP/task-summary.md" \
+          if agent-retry read "Read the GitHub issue in $RUNNER_TEMP/task.md and summarize the work to be implemented in 2-4 concise markdown bullet points. Output only the bullets." 5 > "$RUNNER_TEMP/task-summary.md" \
               && [ -s "$RUNNER_TEMP/task-summary.md" ]; then
             :
           else
@@ -162,10 +216,7 @@ jobs:
               for f in $images; do echo "- $img_dir/$f"; done
             fi
           } > "$RUNNER_TEMP/prompt.md"
-          claude-retry -p "$(cat "$RUNNER_TEMP/prompt.md")" \
-            --permission-mode acceptEdits \
-            --allowedTools "$TOOLS_EDIT,Read($RUNNER_TEMP/issue-images/**)" \
-            --max-turns 60
+          agent-retry edit "$(cat "$RUNNER_TEMP/prompt.md")" 60
 
       - name: Commit and push
         id: commit
@@ -190,7 +241,7 @@ jobs:
         if: steps.commit.outputs.changed == 'false'
         run: |
           gh issue comment "$ISSUE_NUMBER" \
-            --body "Claude ran but made no changes, so no PR was opened. See the [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
+            --body "The agent ran but made no changes, so no PR was opened. See the [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
 
       - name: Open PR
         if: steps.commit.outputs.changed == 'true'
@@ -216,8 +267,7 @@ jobs:
         run: |
           for round in $(seq 1 "$REVIEW_ROUNDS"); do
             echo "::group::Review round $round"
-            claude-retry -p "$GUIDANCE Code review the changes on this branch: run 'git diff origin/$BASE...HEAD'. Look for correctness bugs, missing tests, security issues, and clear maintainability problems. Output a concise markdown list of concrete findings with file and line, most severe first. If there is nothing worth fixing, output exactly: NO ISSUES" \
-              --allowedTools "$TOOLS_REVIEW" > "$RUNNER_TEMP/review-$round.md"
+            agent-retry read "$GUIDANCE Code review the changes on this branch: run 'git diff origin/$BASE...HEAD'. Look for correctness bugs, missing tests, security issues, and clear maintainability problems. Output a concise markdown list of concrete findings with file and line, most severe first. If there is nothing worth fixing, output exactly: NO ISSUES" > "$RUNNER_TEMP/review-$round.md"
             cat "$RUNNER_TEMP/review-$round.md"
             echo "::endgroup::"
 
@@ -235,10 +285,7 @@ jobs:
             gh issue comment "$ISSUE_NUMBER" --body "Code review round $round found issues; applying fixes..."
 
             echo "::group::Fix round $round"
-            claude-retry -p "$GUIDANCE Apply fixes for the findings in $RUNNER_TEMP/review-$round.md to this codebase. Skip any finding that is incorrect. Do not run git commit or git push." \
-              --permission-mode acceptEdits \
-              --allowedTools "$TOOLS_EDIT,Read($RUNNER_TEMP/**)" \
-              --max-turns 40
+            agent-retry edit "$GUIDANCE Apply fixes for the findings in $RUNNER_TEMP/review-$round.md to this codebase. Skip any finding that is incorrect. Do not run git commit or git push." 40
             echo "::endgroup::"
 
             if [ -n "$(git status --porcelain)" ]; then
@@ -251,8 +298,7 @@ jobs:
       - name: Summarize completed work
         if: steps.commit.outputs.changed == 'true'
         run: |
-          if claude-retry -p "Run 'git diff origin/$BASE...HEAD' and summarize the work completed in 3-6 concise markdown bullet points. Output only the bullets." \
-              --allowedTools "$TOOLS_REVIEW" --max-turns 10 > "$RUNNER_TEMP/done-summary.md" \
+          if agent-retry read "Run 'git diff origin/$BASE...HEAD' and summarize the work completed in 3-6 concise markdown bullet points. Output only the bullets." 10 > "$RUNNER_TEMP/done-summary.md" \
               && [ -s "$RUNNER_TEMP/done-summary.md" ]; then
             :
           else
@@ -306,8 +352,7 @@ jobs:
           git diff --stat "origin/$BASE...HEAD" > "$RUNNER_TEMP/diffstat.md"
 
           # Final review-only pass so the last round of fixes is also reviewed
-          claude-retry -p "$GUIDANCE Code review the changes on this branch: run 'git diff origin/$BASE...HEAD'. Look for correctness bugs, security issues, and clear maintainability problems. Output a concise markdown list of concrete findings with file and line, most severe first. If there is nothing worth fixing, output exactly: NO ISSUES" \
-            --allowedTools "$TOOLS_REVIEW" > "$RUNNER_TEMP/review-final.md" || echo "Final review failed" > "$RUNNER_TEMP/review-final.md"
+          agent-retry read "$GUIDANCE Code review the changes on this branch: run 'git diff origin/$BASE...HEAD'. Look for correctness bugs, security issues, and clear maintainability problems. Output a concise markdown list of concrete findings with file and line, most severe first. If there is nothing worth fixing, output exactly: NO ISSUES" > "$RUNNER_TEMP/review-final.md" || echo "Final review failed" > "$RUNNER_TEMP/review-final.md"
           final_clean=false
           grep -qx "NO ISSUES" "$RUNNER_TEMP/review-final.md" && final_clean=true
 
@@ -334,16 +379,14 @@ jobs:
             echo "Auto-merge blocked: project tests failed" > "$RUNNER_TEMP/eval.md"
           elif [ "$final_clean" != "true" ]; then
             echo "Auto-merge blocked: final review did not report NO ISSUES" > "$RUNNER_TEMP/eval.md"
-          elif claude-retry -p "$(cat .github/workflows/evals/pr-ready-to-merge.md)
+          elif agent-retry read "$(cat .github/workflows/evals/pr-ready-to-merge.md)
           $(cat .github/evals-extra.md 2>/dev/null)
 
           Base branch: origin/$BASE
           Issue file: $RUNNER_TEMP/issue.md
           Review files: $RUNNER_TEMP/review-*.md (review-final.md is the review of the fixed code and takes precedence)
           Test results file: $RUNNER_TEMP/tests.md (test status: $TEST_STATUS)
-          Diff stats file: $RUNNER_TEMP/diffstat.md" \
-            --allowedTools "$TOOLS_REVIEW,Read($RUNNER_TEMP/**)" \
-            --max-turns 20 > "$RUNNER_TEMP/eval.md"; then
+          Diff stats file: $RUNNER_TEMP/diffstat.md" 20 > "$RUNNER_TEMP/eval.md"; then
             # Fail closed: only a final line of exactly YES (surrounding whitespace ignored) merges
             last=$(grep -v '^[[:space:]]*$' "$RUNNER_TEMP/eval.md" | tail -n 1 | tr -d '[:space:]')
             [ "$last" = "YES" ] && verdict=YES
