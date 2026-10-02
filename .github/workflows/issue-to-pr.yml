@@ -265,6 +265,10 @@ jobs:
         run: |
           # status: pass | fail | none (no test script found)
           status=none
+          # All pushes are done; drop checkout credentials so branch code cannot read the token from .git/config
+          git config --local --get-regexp '^http\..*\.extraheader$' | cut -d' ' -f1 | while read -r key; do
+            git config --local --unset-all "$key"
+          done || true
           if [ -f package.json ] && node -e 'process.exit(require("./package.json").scripts?.test ? 0 : 1)'; then
             # Run untrusted branch code without secrets or lifecycle scripts
             clean() { env -i PATH="$PATH" HOME="$HOME" CI=true "$@"; }
@@ -282,8 +286,9 @@ jobs:
           fi
           echo "Test status: $status" | tee -a "$RUNNER_TEMP/tests.md"
           echo "status=$status" >> "$GITHUB_OUTPUT"
-          # Tests may have generated files (node_modules, lockfiles); do not let them leak into the diff
-          git status --porcelain
+          # Tests may have generated files (node_modules, lockfiles); restore the tree so nothing leaks into later steps
+          git checkout -- .
+          git clean -fdq
 
       - name: Eval - PR ready to auto-merge
         if: steps.commit.outputs.changed == 'true'
@@ -309,10 +314,14 @@ jobs:
           # Deterministic guard: never auto-merge changes to workflows, auth/secrets, or dependency manifests
           protected=$(git diff --name-only "origin/$BASE...HEAD" \
             | grep -Eiv '(^|/)node_modules/' \
-            | grep -Ei '^\.github/|(^|/)(auth|secrets?|credentials?)|\.env|(^|/)(package(-lock)?\.json|yarn\.lock|pnpm-lock\.yaml|requirements[^/]*\.txt|Pipfile(\.lock)?|poetry\.lock|go\.(mod|sum)|Cargo\.(toml|lock)|Gemfile(\.lock)?|pom\.xml|build\.gradle)$' || true)
+            | grep -Ei '^\.github/|(^|/)(auth|secrets?|credentials?)([/._-]|$)|(^|/)\.env|(^|/)(package(-lock)?\.json|yarn\.lock|pnpm-lock\.yaml|requirements[^/]*\.txt|Pipfile(\.lock)?|poetry\.lock|go\.(mod|sum)|Cargo\.(toml|lock)|Gemfile(\.lock)?|pom\.xml|build\.gradle)$' || true)
           # Deterministic guard: large diffs need a human
           diff_files=$(git diff --name-only "origin/$BASE...HEAD" | wc -l)
           diff_lines=$(git diff --numstat "origin/$BASE...HEAD" | awk '{ if ($1 != "-") n += $1 + $2 } END { print n + 0 }')
+
+          # Fail closed on invalid limits
+          [[ "$MAX_DIFF_FILES" =~ ^[1-9][0-9]*$ ]] || MAX_DIFF_FILES=20
+          [[ "$MAX_DIFF_LINES" =~ ^[1-9][0-9]*$ ]] || MAX_DIFF_LINES=500
 
           verdict=NO
           if [ "$DRY_RUN" = "true" ]; then
