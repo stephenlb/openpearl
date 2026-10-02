@@ -26,7 +26,7 @@ jobs:
           JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
         run: |
-          key=$(printf '%s' "$ISSUE_BODY" | grep -oE '<!-- jira-key: [A-Z][A-Z0-9_]*-[0-9]+ -->' | head -n 1 | awk '{print $3}' || true)
+          key=$(printf '%s' "$ISSUE_BODY" | grep -oE '<!-- jira-key: [A-Z][A-Z0-9_]*-[0-9]+ -->' | tail -n 1 | awk '{print $3}' || true)
           [ -n "$key" ] || { echo "Issue is not linked to a Jira ticket"; exit 0; }
           for v in JIRA_BASE_URL JIRA_EMAIL JIRA_API_TOKEN; do
             [ -n "${!v}" ] || { echo "$v is not configured; skipping"; exit 0; }

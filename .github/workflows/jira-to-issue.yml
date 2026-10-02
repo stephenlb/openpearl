@@ -49,17 +49,21 @@ jobs:
           jq -c '.issues[]' "$RUNNER_TEMP/jira.json" | while read -r ticket; do
             key=$(jq -r '.key' <<<"$ticket")
             title=$(jq -r '.fields.summary' <<<"$ticket")
+            # Strip comment openers so the description cannot spoof the jira-key marker
             description=$(jq -r '.fields.description // ""' <<<"$ticket")
+            description="${description//<!--/}"
             marker="jira-key: $key"
 
             existing=$(gh issue list --state all --search "\"$marker\" in:body" --json number,body \
-              --jq "[.[] | select(.body | contains(\"<!-- $marker -->\"))][0].number // empty")
+              --jq "[.[] | select(.body | contains(\"<!-- $marker -->\"))][0].number // empty") \
+              || { echo "::warning::Could not check existing issues for $key"; continue; }
             if [ -n "$existing" ]; then
               echo "$key already has GitHub issue #$existing"
             else
               printf '%s\n\n%s\n\n<!-- %s -->\n' \
                 "Imported from Jira: [$key]($base/browse/$key)" "$description" "$marker" > "$RUNNER_TEMP/body.md"
-              url=$(gh issue create --title "[$key] $title" --body-file "$RUNNER_TEMP/body.md")
+              url=$(gh issue create --title "[$key] $title" --body-file "$RUNNER_TEMP/body.md") \
+                || { echo "::warning::Could not create GitHub issue for $key"; continue; }
               echo "Created $url for $key"
               jira -X POST "$base/rest/api/2/issue/$key/comment" \
                 -d "$(jq -n --arg b "GitHub issue created: $url" '{body: $b}')" > /dev/null || true
@@ -67,11 +71,13 @@ jobs:
 
             # Move the ticket out of "To Do" so it is not pulled again
             tid=$(jira "$base/rest/api/2/issue/$key/transitions" \
-              | jq -r --arg n "$JIRA_IN_PROGRESS_STATUS" '[.transitions[] | select((.name | ascii_downcase) == ($n | ascii_downcase))][0].id // empty')
+              | jq -r --arg n "$JIRA_IN_PROGRESS_STATUS" '[.transitions[] | select((.name | ascii_downcase) == ($n | ascii_downcase))][0].id // empty') \
+              || { echo "::warning::Could not look up transitions for $key"; continue; }
             if [ -z "$tid" ]; then
               echo "::warning::No '$JIRA_IN_PROGRESS_STATUS' transition available for $key"
               continue
             fi
             jira -X POST "$base/rest/api/2/issue/$key/transitions" \
-              -d "$(jq -n --arg id "$tid" '{transition: {id: $id}}')" > /dev/null
+              -d "$(jq -n --arg id "$tid" '{transition: {id: $id}}')" > /dev/null \
+              || echo "::warning::Could not transition $key"
           done
