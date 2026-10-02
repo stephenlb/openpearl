@@ -2,6 +2,11 @@
   <img width="1024" alt="OpenPearl logo" src="https://github.com/user-attachments/assets/8b8eedc6-24f3-49b4-9f6a-00534b648370" />
 </p>
 
+<p align="center">
+  <a href="https://discord.gg/mygDNrQ7DJ"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join%20the%20chat-5865F2?logo=discord&logoColor=white" /></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/openpearl/openpearl" /></a>
+</p>
+
 # OpenPearl
 
 From ticket to auto-merge. OpenPearl reads a ticket, implements it, opens a PR, reviews it, and merges and deploys automatically. If it isn't confident, it hands the PR to a human.
