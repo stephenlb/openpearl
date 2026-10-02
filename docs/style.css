@@ -11,6 +11,7 @@ nav a.link{display:block;padding:6px 8px;border-radius:6px;color:var(--fg);text-
 nav a.link:hover{background:var(--code)}
 nav a.link.active{background:var(--code);color:var(--accent);font-weight:600}
 main{flex:1;max-width:800px;padding:40px 48px}
+.logo{display:block;max-width:100%;height:auto;margin-bottom:24px}
 h1{margin-top:0;font-size:2rem}
 h2{margin-top:2em;padding-bottom:.3em;border-bottom:1px solid var(--line)}
 code{background:var(--code);padding:.15em .35em;border-radius:4px;font-size:.9em}
