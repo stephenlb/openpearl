@@ -22,8 +22,9 @@ Images attached to the issue are downloaded so Claude can view them.
 
 ## Setup
 
-1. Enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**.
-2. Add the secrets for one provider below under **Settings → Secrets and variables → Actions**.
+1. Copy the `.github/workflows/` directory (the workflow files and the `evals/` folder) from this repository into the root of your own project, then commit and push it. Only copy the Jira and Trello workflows if you use those integrations.
+2. Enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**.
+3. Add the secrets for one provider below under **Settings → Secrets and variables → Actions**.
 
 ### Option A: Anthropic API
 
