@@ -264,7 +264,7 @@ jobs:
           $(cat "$RUNNER_TEMP/review-$round.md")
           EOF
 
-            if grep -qx "NO ISSUES" "$RUNNER_TEMP/review-$round.md"; then
+            if [ "$(grep -v '^[[:space:]]*$' "$RUNNER_TEMP/review-$round.md" | tail -n 1 | tr -d '[:space:]*_`.!' | tr '[:lower:]' '[:upper:]')" = "NOISSUES" ]; then
               gh issue comment "$ISSUE_NUMBER" --body "Code review round $round: no issues found."
               continue
             fi
@@ -337,7 +337,8 @@ jobs:
           # Final review-only pass so the last round of fixes is also reviewed
           agent-retry read "$GUIDANCE $REVIEW_PROMPT" > "$RUNNER_TEMP/review-final.md" || echo "Final review failed" > "$RUNNER_TEMP/review-final.md"
           final_clean=false
-          grep -qx "NO ISSUES" "$RUNNER_TEMP/review-final.md" && final_clean=true
+          # Tolerate markdown, punctuation and case around the sentinel (e.g. "**NO ISSUES**.")
+          [ "$(grep -v '^[[:space:]]*$' "$RUNNER_TEMP/review-final.md" | tail -n 1 | tr -d '[:space:]*_`.!' | tr '[:lower:]' '[:upper:]')" = "NOISSUES" ] && final_clean=true
 
           # Deterministic guard: never auto-merge changes to workflows, auth/secrets, or dependency manifests
           protected=$(git diff --name-only "origin/$BASE...HEAD" \
@@ -425,7 +426,7 @@ jobs:
 
           $(for f in "$RUNNER_TEMP"/review-*.md; do
             [ -f "$f" ] || continue
-            if grep -qx "NO ISSUES" "$f"; then echo "- $(basename "$f" .md): no issues"; elif grep -q "Final review failed" "$f"; then echo "- $(basename "$f" .md): review failed"; else echo "- $(basename "$f" .md): $(grep -cE '^\s*([-*]|[0-9]+\.)' "$f") finding(s)"; fi
+            if [ "$(grep -v '^[[:space:]]*$' "$f" | tail -n 1 | tr -d '[:space:]*_`.!' | tr '[:lower:]' '[:upper:]')" = "NOISSUES" ]; then echo "- $(basename "$f" .md): no issues"; elif grep -q "Final review failed" "$f"; then echo "- $(basename "$f" .md): review failed"; else echo "- $(basename "$f" .md): $(grep -cE '^\s*([-*]|[0-9]+\.)' "$f") finding(s)"; fi
           done)
 
           ### Tests
