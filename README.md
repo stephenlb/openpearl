@@ -4,7 +4,7 @@
 
 # OpenPearl
 
-From Ticket to PR software delivery pipeline. Reads ticket, implements, PR, Code Review, Ready for human to merge.
+Ticket to Auto-merge. Software delivery pipeline. Read tickets, implements, PR, Code Review, Auto-merge and deploy or human to merge when needed.
 
 ## Setup
 
