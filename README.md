@@ -11,8 +11,8 @@ From ticket to auto-merge. OpenPearl reads a ticket, implements it, opens a PR, 
 When an owner, member, or collaborator opens an issue, `.github/workflows/issue-to-pr.yml` runs:
 
 1. The agent (Claude Code by default; OpenCode or Codex optional) implements the issue and opens a PR.
-2. Claude runs two review/fix rounds.
-3. Claude runs the eval in `.github/workflows/evals/pr-ready-to-merge.md`.
+2. The agent CLI (Claude by default) runs two review/fix rounds.
+3. The agent CLI runs the eval in `.github/workflows/evals/pr-ready-to-merge.md`.
    - `YES`: the PR is squash-merged and the issue gets a "PR Auto-Merged: …" comment.
    - Anything else: the PR stays open for a human and the issue gets a "PR Ready for Review: …" comment.
 

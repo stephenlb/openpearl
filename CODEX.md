@@ -21,6 +21,6 @@ Permissions map to Codex sandbox modes:
 ## Notes
 
 - The max-turns limit used with Claude Code is not applied; the job's 60-minute timeout still bounds a run.
-- Codex reads `AGENTS.md` for repository conventions.
+- Codex reads an `AGENTS.md` in the repository root for conventions, if one exists.
 - Edit `.github/workflows/issue-to-pr.yml` (the `agent-retry` wrapper) to change flags or sandbox modes.
 - To go back to Claude Code, delete the `AGENT_CLI` variable or set it to `claude`.

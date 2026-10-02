@@ -101,7 +101,7 @@ jobs:
                 ;;
               opencode)
                 if [ "$mode" = edit ]; then
-                  export OPENCODE_PERMISSION='{"edit":"allow","bash":"allow","webfetch":"deny"}'
+                  export OPENCODE_PERMISSION='{"edit":"allow","bash":{"*":"deny","git diff*":"allow","git log*":"allow","git status*":"allow","ls*":"allow","npm*":"allow","npx*":"allow"},"webfetch":"deny"}'
                 else
                   export OPENCODE_PERMISSION='{"edit":"deny","webfetch":"deny","bash":{"*":"deny","git diff*":"allow","git log*":"allow","git status*":"allow"}}'
                 fi
@@ -111,7 +111,7 @@ jobs:
                 ;;
               codex)
                 export CODEX_API_KEY="${CODEX_API_KEY:-$OPENAI_API_KEY}"
-                sandbox=read-only
+                local sandbox=read-only last rc
                 [ "$mode" = edit ] && sandbox=workspace-write
                 last=$(mktemp)
                 args=(exec --sandbox "$sandbox" --skip-git-repo-check --output-last-message "$last")
