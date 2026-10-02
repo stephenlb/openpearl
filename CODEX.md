@@ -7,7 +7,7 @@ Run the OpenPearl workflow with the [OpenAI Codex CLI](https://github.com/openai
 1. Follow the base setup in [README.md](README.md) (enable PR creation for Actions, optional `PUSH_TOKEN`).
 2. Set the repository variable **`AGENT_CLI`** to `codex` under **Settings → Secrets and variables → Actions → Variables**.
 3. Add the secret **`OPENAI_API_KEY`** with your OpenAI API key.
-4. Optionally add the secret **`AGENT_MODEL`** (e.g. `gpt-5-codex`). If unset, Codex uses its default model.
+4. Optionally add the secret **`AGENT_MODEL`** (e.g. `gpt-6.1-sol`). If unset, Codex uses its default model.
 
 The workflow installs `@openai/codex` from npm and runs `codex exec`, capturing the final message with `--output-last-message`.
 
