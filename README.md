@@ -8,7 +8,7 @@ The workflow in `.github/workflows/issue-to-pr.yml` runs when an issue is opened
 
 Enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**.
 
-Configure one of the two providers below under **Settings → Secrets and variables → Actions**.
+Configure one of the two providers below under **Settings → Secrets and variables → Actions** (as secrets).
 
 ### Option A: Anthropic API
 
@@ -20,11 +20,11 @@ Configure one of the two providers below under **Settings → Secrets and variab
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| `CLAUDE_CODE_USE_BEDROCK` | Variable | Yes | Set to `1` to make the Claude Code CLI use Bedrock. |
+| `CLAUDE_CODE_USE_BEDROCK` | Secret | Yes | Set to `1` to make the Claude Code CLI use Bedrock. |
 | `AWS_BEARER_TOKEN_BEDROCK` | Secret | Yes | Bedrock API key. |
-| `AWS_REGION` | Variable | Yes | Region with Claude model access, e.g. `us-east-1`. |
-| `ANTHROPIC_MODEL` | Variable | No | Bedrock model ID or inference profile, e.g. `us.anthropic.claude-sonnet-4-5-20250929-v1:0`. |
-| `ANTHROPIC_SMALL_FAST_MODEL` | Variable | No | Model used for background tasks. |
+| `AWS_REGION` | Secret | Yes | Region with Claude model access, e.g. `us-east-1`. |
+| `ANTHROPIC_MODEL` | Secret | No | Bedrock model ID or inference profile, e.g. `us.anthropic.claude-sonnet-4-5-20250929-v1:0`. |
+| `ANTHROPIC_SMALL_FAST_MODEL` | Secret | No | Model used for background tasks. |
 
 Model access must be enabled in the Bedrock console for the chosen region. If you leave `ANTHROPIC_MODEL` unset, Claude Code uses its default model ID, which must be available in your account.
 

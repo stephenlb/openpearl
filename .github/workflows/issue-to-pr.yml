@@ -20,12 +20,12 @@ env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   # Anthropic API auth (leave the secret unset when using Bedrock)
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-  # Bedrock auth (set CLAUDE_CODE_USE_BEDROCK=1 as a repo variable to enable)
-  CLAUDE_CODE_USE_BEDROCK: ${{ vars.CLAUDE_CODE_USE_BEDROCK }}
+  # Bedrock auth (set CLAUDE_CODE_USE_BEDROCK=1 as a repo secret to enable)
+  CLAUDE_CODE_USE_BEDROCK: ${{ secrets.CLAUDE_CODE_USE_BEDROCK }}
   AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}
-  AWS_REGION: ${{ vars.AWS_REGION }}
-  ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
-  ANTHROPIC_SMALL_FAST_MODEL: ${{ vars.ANTHROPIC_SMALL_FAST_MODEL }}
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+  ANTHROPIC_SMALL_FAST_MODEL: ${{ secrets.ANTHROPIC_SMALL_FAST_MODEL }}
   TOOLS_EDIT: "Read,Edit,Write,Glob,Grep,Bash(git diff:*),Bash(git status:*),Bash(git log:*),Bash(ls:*),Bash(npm:*),Bash(npx:*)"
   TOOLS_REVIEW: "Read,Glob,Grep,Bash(git diff:*),Bash(git log:*),Bash(git status:*)"
 
