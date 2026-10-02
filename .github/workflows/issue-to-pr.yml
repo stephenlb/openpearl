@@ -63,6 +63,25 @@ jobs:
           git config user.email "claude[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
 
+      - name: Comment with task summary
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          printf '# %s\n\n%s\n' "$ISSUE_TITLE" "$ISSUE_BODY" > "$RUNNER_TEMP/task.md"
+          if claude -p "Read the GitHub issue in $RUNNER_TEMP/task.md and summarize the work to be implemented in 2-4 concise markdown bullet points. Output only the bullets." \
+              --allowedTools "Read($RUNNER_TEMP/**)" --max-turns 5 > "$RUNNER_TEMP/task-summary.md" \
+              && [ -s "$RUNNER_TEMP/task-summary.md" ]; then
+            :
+          else
+            echo "_Summary unavailable; see the issue description._" > "$RUNNER_TEMP/task-summary.md"
+          fi
+          gh issue comment "$ISSUE_NUMBER" --body-file - <<EOF
+          ## Task summary
+
+          $(cat "$RUNNER_TEMP/task-summary.md")
+          EOF
+
       - name: Comment that implementation started
         run: |
           gh issue comment "$ISSUE_NUMBER" --body "Analyzing the issue and implementing changes..."
@@ -197,6 +216,17 @@ jobs:
             fi
           done
 
+      - name: Summarize completed work
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          if claude -p "Run 'git diff origin/$BASE...HEAD' and summarize the work completed in 3-6 concise markdown bullet points. Output only the bullets." \
+              --allowedTools "$TOOLS_REVIEW" --max-turns 10 > "$RUNNER_TEMP/done-summary.md" \
+              && [ -s "$RUNNER_TEMP/done-summary.md" ]; then
+            :
+          else
+            echo "_Summary unavailable; see the PR for details._" > "$RUNNER_TEMP/done-summary.md"
+          fi
+
       - name: Eval - PR ready to auto-merge
         if: steps.commit.outputs.changed == 'true'
         env:
@@ -254,6 +284,16 @@ jobs:
           else
             gh issue comment "$ISSUE_NUMBER" --body "Auto-merge eval: NO. PR Ready for Review: $PR_URL"
           fi
+
+      - name: Comment with summary of work completed
+        if: steps.commit.outputs.changed == 'true' && !cancelled()
+        run: |
+          [ -s "$RUNNER_TEMP/done-summary.md" ] || echo "_Summary unavailable; see the PR for details._" > "$RUNNER_TEMP/done-summary.md"
+          gh issue comment "$ISSUE_NUMBER" --body-file - <<EOF
+          ## Summary of work completed
+
+          $(cat "$RUNNER_TEMP/done-summary.md")
+          EOF
 
       - name: Report failure
         if: failure()
