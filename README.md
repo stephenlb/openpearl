@@ -1,3 +1,7 @@
+<p align="center">
+  <img width="1032" alt="OpenPearl logo" src="https://github.com/user-attachments/assets/cb83af86-9dfa-4cb7-a980-060fca3cc293" />
+</p>
+
 # OpenPearl
 
 From Ticket to PR software delivery pipeline. Reads ticket, implements, PR, Code Review, Ready for human to merge.
