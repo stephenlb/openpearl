@@ -88,6 +88,26 @@ Good to know:
 - Built-in `GITHUB_TOKEN` events don't trigger workflows, which is why `PUSH_TOKEN` is required here.
 - If no transition matches `JIRA_IN_PROGRESS_STATUS`, the ticket stays in "To Do" and a warning is logged. It won't be imported twice (issues carry a hidden `jira-key` marker).
 
+## Optional: Trello
+
+`.github/workflows/trello-to-issue.yml` works like the Jira import. It polls a Trello list and, for each card, it:
+
+- creates a GitHub issue titled `[shortLink] <card name>`, which starts the normal flow,
+- comments on the card with the issue link,
+- moves the card to your "In Progress" list.
+
+To set up, get a Trello [API key and token](https://trello.com/power-ups/admin) for a user who can read, comment on, and move cards on the board. List IDs are visible at `https://api.trello.com/1/boards/<boardId>/lists?key=...&token=...`. Then add:
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `TRELLO_API_KEY` | Secret | Yes | Trello API key. |
+| `TRELLO_TOKEN` | Secret | Yes | Trello API token. |
+| `TRELLO_TODO_LIST_ID` | Variable | Yes | ID of the list to import cards from. |
+| `TRELLO_IN_PROGRESS_LIST_ID` | Variable | Yes | ID of the list imported cards are moved to. |
+| `PUSH_TOKEN` | Secret | Yes | See [GitHub token](#optional-github-token). |
+
+Polling is disabled by default (the workflow only runs on manual dispatch). To enable it, uncomment the `schedule` lines at the top of `trello-to-issue.yml` and commit to `main`. Issues carry a hidden `trello-key` marker, so a card is never imported twice. Comments are not synced back to Trello.
+
 ## License
 
 Apache 2.0
