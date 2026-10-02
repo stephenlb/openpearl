@@ -1,0 +1,38 @@
+name: Issue Comment to Jira
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: read
+
+jobs:
+  mirror:
+    # Comment bodies are untrusted: only mirror comments from trusted authors.
+    if: >-
+      !github.event.issue.pull_request &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Add comment to Jira ticket
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_USER: ${{ github.event.comment.user.login }}
+          COMMENT_URL: ${{ github.event.comment.html_url }}
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+        run: |
+          key=$(printf '%s' "$ISSUE_BODY" | grep -oE '<!-- jira-key: [A-Z][A-Z0-9_]*-[0-9]+ -->' | head -n 1 | awk '{print $3}' || true)
+          [ -n "$key" ] || { echo "Issue is not linked to a Jira ticket"; exit 0; }
+          for v in JIRA_BASE_URL JIRA_EMAIL JIRA_API_TOKEN; do
+            [ -n "${!v}" ] || { echo "$v is not configured; skipping"; exit 0; }
+          done
+          body=$(printf 'GitHub comment by %s (%s):\n\n%s' "$COMMENT_USER" "$COMMENT_URL" "$COMMENT_BODY")
+          curl -fsS --max-time 60 -u "$JIRA_EMAIL:$JIRA_API_TOKEN" -H 'Content-Type: application/json' \
+            -X POST "${JIRA_BASE_URL%/}/rest/api/2/issue/$key/comment" \
+            -d "$(jq -n --arg b "$body" '{body: $b}')" > /dev/null
+          echo "Added comment to $key"

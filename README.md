@@ -40,6 +40,29 @@ Without `PUSH_TOKEN` the workflow falls back to the built-in `GITHUB_TOKEN`, whi
 
 Because this token can edit workflows and the run is started by issue text, keep the trusted-author check (`author_association`) in the workflow and review PRs before merging.
 
+### Jira tickets (optional)
+
+`.github/workflows/jira-to-issue.yml` polls Jira every 10 minutes (or on manual dispatch) for tickets in the listed projects whose status category is "To Do". For each one it creates a GitHub issue titled `[BLOCKS-475] <summary>` (which starts the normal issue-to-PR flow), comments on the Jira ticket with the issue link, and transitions the ticket to "In Progress". Issues carry a hidden `jira-key` marker so a ticket is never imported twice.
+
+`.github/workflows/issue-comment-to-jira.yml` copies comments added to those GitHub issues (by owners, members, or collaborators) onto the original Jira ticket.
+
+Create an API token at <https://id.atlassian.com/manage-profile/security/api-tokens> for a Jira user that can browse, comment on, and transition tickets in the projects.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `JIRA_BASE_URL` | Secret | Yes | Jira site URL, e.g. `https://pubnub.atlassian.net`. |
+| `JIRA_EMAIL` | Secret | Yes | Email of the Atlassian user that owns the API token. |
+| `JIRA_API_TOKEN` | Secret | Yes | Atlassian API token. |
+| `JIRA_PROJECTS` | Variable | Yes | Comma separated project keys to watch, e.g. `BLOCKS,PLAT`. |
+| `JIRA_IN_PROGRESS_STATUS` | Variable | No | Transition name applied to imported tickets. Defaults to `In Progress`. |
+| `PUSH_TOKEN` | Secret | Yes | See below; required so issues and comments created by the pipeline trigger workflows. |
+
+Notes:
+
+- Every ticket already in a "To Do" status category is imported (10 per run), so move backlog tickets elsewhere before enabling.
+- Events created with the built-in `GITHUB_TOKEN` do not trigger workflows, so `PUSH_TOKEN` is required for Jira imports and for the pipeline's own status comments to be mirrored to Jira.
+- If the project's workflow has no transition matching `JIRA_IN_PROGRESS_STATUS`, the ticket stays in "To Do" and a warning is logged; it is not imported twice.
+
 ### License
 
 Apache 2.0

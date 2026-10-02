@@ -1,0 +1,77 @@
+name: Jira to Issue
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+concurrency:
+  group: jira-to-issue
+  cancel-in-progress: false
+
+env:
+  # Issues must be created with a PAT, otherwise GitHub will not trigger the Issue to PR workflow
+  GH_TOKEN: ${{ secrets.PUSH_TOKEN }}
+  GH_REPO: ${{ github.repository }}
+  JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+  JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+  JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+  # Comma separated Jira project keys, e.g. BLOCKS,PLAT
+  JIRA_PROJECTS: ${{ vars.JIRA_PROJECTS }}
+  # Transition name to move pulled tickets to
+  JIRA_IN_PROGRESS_STATUS: ${{ vars.JIRA_IN_PROGRESS_STATUS || 'In Progress' }}
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Pull new Jira tickets
+        run: |
+          for v in GH_TOKEN JIRA_BASE_URL JIRA_EMAIL JIRA_API_TOKEN JIRA_PROJECTS; do
+            [ -n "${!v}" ] || { echo "$v is not configured; skipping Jira pull"; exit 0; }
+          done
+          base="${JIRA_BASE_URL%/}"
+          projects=$(printf '%s' "$JIRA_PROJECTS" | tr -d '[:space:]')
+          printf '%s' "$projects" | grep -qE '^[A-Za-z][A-Za-z0-9_]*(,[A-Za-z][A-Za-z0-9_]*)*$' \
+            || { echo "JIRA_PROJECTS must be a comma separated list of project keys"; exit 1; }
+
+          jira() { curl -fsS --max-time 60 -u "$JIRA_EMAIL:$JIRA_API_TOKEN" -H 'Content-Type: application/json' "$@"; }
+
+          jql="project in ($projects) AND statusCategory = \"To Do\" ORDER BY created ASC"
+          jira -X POST "$base/rest/api/2/search/jql" \
+            -d "$(jq -n --arg jql "$jql" '{jql: $jql, fields: ["summary","description"], maxResults: 10}')" \
+            > "$RUNNER_TEMP/jira.json"
+
+          jq -c '.issues[]' "$RUNNER_TEMP/jira.json" | while read -r ticket; do
+            key=$(jq -r '.key' <<<"$ticket")
+            title=$(jq -r '.fields.summary' <<<"$ticket")
+            description=$(jq -r '.fields.description // ""' <<<"$ticket")
+            marker="jira-key: $key"
+
+            existing=$(gh issue list --state all --search "\"$marker\" in:body" --json number,body \
+              --jq "[.[] | select(.body | contains(\"<!-- $marker -->\"))][0].number // empty")
+            if [ -n "$existing" ]; then
+              echo "$key already has GitHub issue #$existing"
+            else
+              printf '%s\n\n%s\n\n<!-- %s -->\n' \
+                "Imported from Jira: [$key]($base/browse/$key)" "$description" "$marker" > "$RUNNER_TEMP/body.md"
+              url=$(gh issue create --title "[$key] $title" --body-file "$RUNNER_TEMP/body.md")
+              echo "Created $url for $key"
+              jira -X POST "$base/rest/api/2/issue/$key/comment" \
+                -d "$(jq -n --arg b "GitHub issue created: $url" '{body: $b}')" > /dev/null || true
+            fi
+
+            # Move the ticket out of "To Do" so it is not pulled again
+            tid=$(jira "$base/rest/api/2/issue/$key/transitions" \
+              | jq -r --arg n "$JIRA_IN_PROGRESS_STATUS" '[.transitions[] | select((.name | ascii_downcase) == ($n | ascii_downcase))][0].id // empty')
+            if [ -z "$tid" ]; then
+              echo "::warning::No '$JIRA_IN_PROGRESS_STATUS' transition available for $key"
+              continue
+            fi
+            jira -X POST "$base/rest/api/2/issue/$key/transitions" \
+              -d "$(jq -n --arg id "$tid" '{transition: {id: $id}}')" > /dev/null
+          done
