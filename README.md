@@ -16,6 +16,8 @@ When an owner, member, or collaborator opens an issue, `.github/workflows/issue-
    - `YES`: the PR is squash-merged and the issue gets a "PR Auto-Merged: …" comment.
    - Anything else: the PR stays open for a human and the issue gets a "PR Ready for Review: …" comment.
 
+To add or change evals, see [EVALS.md](EVALS.md).
+
 Images attached to the issue are downloaded so Claude can view them.
 
 ## Setup
