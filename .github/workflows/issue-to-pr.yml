@@ -275,11 +275,13 @@ jobs:
 
           if [ "$verdict" = "YES" ]; then
             gh issue comment "$ISSUE_NUMBER" --body "Auto-merge eval: YES. Waiting for CI on $PR_URL..."
-            if gh pr checks "$PR_NUMBER" --watch --fail-fast \
+            # `gh pr checks` exits non-zero when a PR has no checks, so only watch if some exist
+            check_count=$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup | length')
+            if { [ "$check_count" = "0" ] || gh pr checks "$PR_NUMBER" --watch --fail-fast; } \
               && gh pr merge "$PR_NUMBER" --squash --delete-branch; then
               gh issue comment "$ISSUE_NUMBER" --body "PR Auto-Merged: $PR_URL"
             else
-              gh issue comment "$ISSUE_NUMBER" --body "Auto-merge failed (checks failing/missing or merge blocked). PR Ready for Review: $PR_URL"
+              gh issue comment "$ISSUE_NUMBER" --body "Auto-merge failed (checks failing or merge blocked). PR Ready for Review: $PR_URL"
             fi
           else
             gh issue comment "$ISSUE_NUMBER" --body "Auto-merge eval: NO. PR Ready for Review: $PR_URL"
