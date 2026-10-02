@@ -198,6 +198,9 @@ jobs:
         env:
           ISSUE_TITLE: ${{ github.event.issue.title }}
         run: |
+          # Clamp to a positive integer for this and later steps
+          [[ "$REVIEW_ROUNDS" =~ ^[1-9][0-9]*$ ]] || REVIEW_ROUNDS=2
+          echo "REVIEW_ROUNDS=$REVIEW_ROUNDS" >> "$GITHUB_ENV"
           url=$(gh pr create \
             --base "$BASE" --head "$BRANCH" \
             --title "$ISSUE_TITLE" \
@@ -263,8 +266,10 @@ jobs:
           # status: pass | fail | none (no test script found)
           status=none
           if [ -f package.json ] && node -e 'process.exit(require("./package.json").scripts?.test ? 0 : 1)'; then
-            if { [ -f package-lock.json ] && npm ci || npm install; } > "$RUNNER_TEMP/tests.md" 2>&1 \
-              && npm test >> "$RUNNER_TEMP/tests.md" 2>&1; then
+            # Run untrusted branch code without secrets or lifecycle scripts
+            clean() { env -i PATH="$PATH" HOME="$HOME" CI=true "$@"; }
+            if { [ -f package-lock.json ] && clean npm ci --ignore-scripts || clean npm install --ignore-scripts; } > "$RUNNER_TEMP/tests.md" 2>&1 \
+              && clean npm test >> "$RUNNER_TEMP/tests.md" 2>&1; then
               status=pass
             else
               status=fail
@@ -385,7 +390,7 @@ jobs:
 
           $(for f in "$RUNNER_TEMP"/review-*.md; do
             [ -f "$f" ] || continue
-            if grep -qx "NO ISSUES" "$f"; then echo "- $(basename "$f" .md): no issues"; else echo "- $(basename "$f" .md): $(grep -cE '^\s*([-*]|[0-9]+\.)' "$f") finding(s)"; fi
+            if grep -qx "NO ISSUES" "$f"; then echo "- $(basename "$f" .md): no issues"; elif grep -q "Final review failed" "$f"; then echo "- $(basename "$f" .md): review failed"; else echo "- $(basename "$f" .md): $(grep -cE '^\s*([-*]|[0-9]+\.)' "$f") finding(s)"; fi
           done)
 
           ### Tests
