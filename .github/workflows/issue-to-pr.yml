@@ -70,7 +70,7 @@ jobs:
         run: |
           printf '# %s\n\n%s\n' "$ISSUE_TITLE" "$ISSUE_BODY" > "$RUNNER_TEMP/task.md"
           if claude -p "Read the GitHub issue in $RUNNER_TEMP/task.md and summarize the work to be implemented in 2-4 concise markdown bullet points. Output only the bullets." \
-              --allowedTools "Read($RUNNER_TEMP/task.md)" --max-turns 5 > "$RUNNER_TEMP/task-summary.md" \
+              --allowedTools "Read($RUNNER_TEMP/**)" --max-turns 5 > "$RUNNER_TEMP/task-summary.md" \
               && [ -s "$RUNNER_TEMP/task-summary.md" ]; then
             :
           else
@@ -288,6 +288,7 @@ jobs:
       - name: Comment with summary of work completed
         if: steps.commit.outputs.changed == 'true' && !cancelled()
         run: |
+          [ -s "$RUNNER_TEMP/done-summary.md" ] || echo "_Summary unavailable; see the PR for details._" > "$RUNNER_TEMP/done-summary.md"
           gh issue comment "$ISSUE_NUMBER" --body-file - <<EOF
           ## Summary of work completed
 
