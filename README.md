@@ -8,6 +8,8 @@ The workflow in `.github/workflows/issue-to-pr.yml` runs when an issue is opened
 
 Enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**.
 
+Images attached to the issue body (GitHub uploads) are downloaded and made available to Claude, which can view them while implementing.
+
 Configure one of the two providers below under **Settings → Secrets and variables → Actions** (as secrets).
 
 ### Option A: Anthropic API

@@ -61,6 +61,25 @@ jobs:
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
+          # Download images attached to the issue so Claude can view them with Read
+          img_dir="$RUNNER_TEMP/issue-images"
+          mkdir -p "$img_dir"
+          n=0
+          while read -r url; do
+            n=$((n + 1))
+            tmp="$img_dir/download-$n"
+            curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -o "$tmp" "$url" || { echo "Could not download $url"; continue; }
+            case "$(file -b --mime-type "$tmp")" in
+              image/png) ext=png ;;
+              image/jpeg) ext=jpg ;;
+              image/gif) ext=gif ;;
+              image/webp) ext=webp ;;
+              *) rm -f "$tmp"; continue ;;
+            esac
+            mv "$tmp" "$img_dir/image-$n.$ext"
+          done < <(printf '%s' "$ISSUE_BODY" \
+            | grep -oE 'https://(github\.com/user-attachments/assets/|user-images\.githubusercontent\.com/|private-user-images\.githubusercontent\.com/)[^")> ]+' \
+            | sort -u)
           {
             echo "You are implementing GitHub issue #$ISSUE_NUMBER in this repository."
             echo "Modify the codebase to resolve it. Follow existing conventions, add or update tests where appropriate."
@@ -69,10 +88,17 @@ jobs:
             echo "# $ISSUE_TITLE"
             echo
             echo "$ISSUE_BODY"
+            images=$(ls "$img_dir")
+            if [ -n "$images" ]; then
+              echo
+              echo "# Attached images"
+              echo "The issue references images, downloaded to the files below. Use Read to view them."
+              for f in $images; do echo "- $img_dir/$f"; done
+            fi
           } > "$RUNNER_TEMP/prompt.md"
           claude -p "$(cat "$RUNNER_TEMP/prompt.md")" \
             --permission-mode acceptEdits \
-            --allowedTools "$TOOLS_EDIT" \
+            --allowedTools "$TOOLS_EDIT,Read($img_dir/**)" \
             --max-turns 60
 
       - name: Commit and push
