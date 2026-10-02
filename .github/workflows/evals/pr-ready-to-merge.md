@@ -17,4 +17,4 @@ Answer YES only if ALL of these hold:
 
 If anything is uncertain, missing, or risky, answer NO.
 
-Output format: a short justification (at most 5 lines), then a final line that is exactly `YES` or exactly `NO` and nothing else.
+Output format: a short justification (at most 5 lines), then a final line that is exactly `YES` or exactly `NO` (plain text, no markdown, no punctuation) and nothing else.

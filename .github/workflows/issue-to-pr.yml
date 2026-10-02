@@ -216,17 +216,31 @@ jobs:
         run: |
           gh issue comment "$ISSUE_NUMBER" --body "Running final eval to decide whether PR $PR_URL is safe to auto-merge..."
           printf '# %s\n\n%s\n' "$ISSUE_TITLE" "$ISSUE_BODY" > "$RUNNER_TEMP/issue.md"
-          claude -p "$(cat .github/workflows/evals/pr-ready-to-merge.md)
+
+          # Final review-only pass so the round-2 fixes are also reviewed
+          claude -p "Code review the changes on this branch: run 'git diff origin/$BASE...HEAD'. Look for correctness bugs, security issues, and clear maintainability problems. Output a concise markdown list of concrete findings with file and line, most severe first. If there is nothing worth fixing, output exactly: NO ISSUES" \
+            --allowedTools "$TOOLS_REVIEW" > "$RUNNER_TEMP/review-3.md" || echo "Final review failed" > "$RUNNER_TEMP/review-3.md"
+
+          # Deterministic guard: never auto-merge changes to workflows
+          protected=$(git diff --name-only "origin/$BASE...HEAD" | grep -E '^\.github/' || true)
+
+          verdict=NO
+          if [ -n "$protected" ]; then
+            printf 'Auto-merge blocked: diff touches protected paths:\n%s\n' "$protected" > "$RUNNER_TEMP/eval.md"
+          elif claude -p "$(cat .github/workflows/evals/pr-ready-to-merge.md)
 
           Base branch: origin/$BASE
           Issue file: $RUNNER_TEMP/issue.md
-          Review files: $RUNNER_TEMP/review-1.md, $RUNNER_TEMP/review-2.md" \
+          Review files: $RUNNER_TEMP/review-1.md, $RUNNER_TEMP/review-2.md, $RUNNER_TEMP/review-3.md (review-3 is the final review of the fixed code and takes precedence)" \
             --allowedTools "$TOOLS_REVIEW,Read($RUNNER_TEMP/**)" \
-            --max-turns 20 > "$RUNNER_TEMP/eval.md"
+            --max-turns 20 > "$RUNNER_TEMP/eval.md"; then
+            # Fail closed: only a final line of YES (ignoring case, markdown and punctuation) merges
+            last=$(grep -v '^[[:space:]]*$' "$RUNNER_TEMP/eval.md" | tail -n 1 | tr -d '[:space:]*`.')
+            [ "${last^^}" = "YES" ] && verdict=YES
+          else
+            echo "Eval command failed" > "$RUNNER_TEMP/eval.md"
+          fi
           cat "$RUNNER_TEMP/eval.md"
-
-          # Fail closed: only an exact final line of YES merges
-          verdict=$(grep -v '^[[:space:]]*$' "$RUNNER_TEMP/eval.md" | tail -n 1 | tr -d '[:space:]')
 
           gh pr comment "$PR_NUMBER" --body-file - <<EOF
           ## Auto-merge eval
