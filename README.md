@@ -10,7 +10,7 @@ From ticket to auto-merge. OpenPearl reads a ticket, implements it, opens a PR, 
 
 When an owner, member, or collaborator opens an issue, `.github/workflows/issue-to-pr.yml` runs:
 
-1. Claude Code implements the issue and opens a PR.
+1. The agent (Claude Code by default; OpenCode or Codex optional) implements the issue and opens a PR.
 2. Claude runs two review/fix rounds.
 3. Claude runs the eval in `.github/workflows/evals/pr-ready-to-merge.md`.
    - `YES`: the PR is squash-merged and the issue gets a "PR Auto-Merged: …" comment.
@@ -44,6 +44,10 @@ Images attached to the issue are downloaded so Claude can view them.
 Enable model access in the Bedrock console for your region. If `ANTHROPIC_MODEL` is unset, Claude Code's default model must be available in your account.
 
 All values above are stored as secrets.
+
+## Optional: OpenCode or Codex
+
+Claude Code is the default agent. To use another CLI, set the `AGENT_CLI` repository variable to `opencode` or `codex` and follow [OPENCODE.md](OPENCODE.md) or [CODEX.md](CODEX.md).
 
 ## Optional: GitHub token
 
