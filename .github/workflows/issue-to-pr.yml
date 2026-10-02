@@ -330,6 +330,7 @@ jobs:
 
       - name: Eval - PR ready to auto-merge
         if: steps.commit.outputs.changed == 'true'
+        id: eval
         env:
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
@@ -400,6 +401,7 @@ jobs:
             gh pr edit "$PR_NUMBER" --add-label "$1" >/dev/null 2>&1 || true
           }
           echo "Outcome tracking: issue=$ISSUE_NUMBER pr=$PR_NUMBER verdict=$verdict dry_run=$DRY_RUN tests=$TEST_STATUS"
+          echo "merged=false" >> "$GITHUB_OUTPUT"
 
           if [ "$verdict" = "YES" ]; then
             gh issue comment "$ISSUE_NUMBER" --body "Auto-merge eval: YES. Waiting for CI on $PR_URL..."
@@ -408,6 +410,7 @@ jobs:
             if { [ "$check_count" = "0" ] || gh pr checks "$PR_NUMBER" --watch --fail-fast; } \
               && gh pr merge "$PR_NUMBER" --squash --delete-branch; then
               label auto-merged 0e8a16
+              echo "merged=true" >> "$GITHUB_OUTPUT"
               gh issue comment "$ISSUE_NUMBER" --body "PR Auto-Merged: $PR_URL"
             else
               label needs-human d93f0b
@@ -424,10 +427,23 @@ jobs:
 
       - name: Comment with summary of work completed
         if: steps.commit.outputs.changed == 'true' && !cancelled()
+        env:
+          PR_URL: ${{ steps.pr.outputs.url }}
+          MERGED: ${{ steps.eval.outputs.merged }}
         run: |
+          # Unless the PR was auto-merged, make the manual review-and-merge step impossible to miss
+          if [ "$MERGED" = "true" ]; then
+            pr_banner="PR auto-merged: $PR_URL"
+          else
+            pr_banner="# 👉 [ACTION REQUIRED: REVIEW AND MERGE THE PR MANUALLY]($PR_URL)
+
+          **Auto-merge did not happen. Click the link above, review the changes, and merge the PR yourself:** $PR_URL"
+          fi
           [ -s "$RUNNER_TEMP/done-summary.md" ] || echo "_Summary unavailable; see the PR for details._" > "$RUNNER_TEMP/done-summary.md"
           gh issue comment "$ISSUE_NUMBER" --body-file - <<EOF
           ## Summary of work completed
+
+          $pr_banner
 
           $(cat "$RUNNER_TEMP/done-summary.md")
 
