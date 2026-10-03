@@ -28,8 +28,26 @@
       <li>The agent CLI runs two review/fix rounds.</li>
       <li>The agent CLI runs the eval in <code>.github/workflows/evals/pr-ready-to-merge.md</code>. On <code>YES</code> the PR is squash-merged; otherwise it stays open for a human.</li>
     </ol>
+    <h2>Install</h2>
+    <p>Paste this prompt into your coding agent (Claude Code, Codex, OpenCode) from the root of your project. It installs the OpenPearl workflow files.</p>
+    <pre id="install-prompt"><code>Install OpenPearl into this project.
+
+1. Download the .github/workflows directory from https://github.com/stephenlb/openpearl (branch main) into this project's .github/workflows directory: issue-to-pr.yml and the evals/ folder (evals/pr-ready-to-merge.md). Only also copy jira-to-issue.yml, issue-comment-to-jira.yml and trello-to-issue.yml if I use Jira or Trello. For example: git clone --depth 1 https://github.com/stephenlb/openpearl /tmp/openpearl, then copy the files. Do not overwrite existing files without asking me.
+2. Do not modify any other files in my project.
+3. Commit the new files on a branch and tell me to finish setup:
+   - Enable Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests".
+   - Add the secret ANTHROPIC_API_KEY under Settings > Secrets and variables > Actions (or the Amazon Bedrock secrets listed in https://github.com/stephenlb/openpearl#setup).</code></pre>
+    <button id="copy-prompt" type="button">Copy prompt</button>
     <p class="note">See the <a href="https://github.com/stephenlb/openpearl">README</a> for setup instructions.</p>
   </main>
 </div>
+<script>
+document.getElementById("copy-prompt").onclick=function(){
+  var b=this;
+  navigator.clipboard.writeText(document.getElementById("install-prompt").innerText).then(function(){
+    b.textContent="Copied!";setTimeout(function(){b.textContent="Copy prompt"},2000);
+  });
+};
+</script>
 </body>
 </html>
