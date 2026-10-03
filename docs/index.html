@@ -44,9 +44,11 @@
 <script>
 document.getElementById("copy-prompt").onclick=function(){
   var b=this;
+  function flash(t){b.textContent=t;setTimeout(function(){b.textContent="Copy prompt"},2000);}
+  if(!navigator.clipboard){flash("Copy failed");return;}
   navigator.clipboard.writeText(document.getElementById("install-prompt").innerText).then(function(){
-    b.textContent="Copied!";setTimeout(function(){b.textContent="Copy prompt"},2000);
-  });
+    flash("Copied!");
+  },function(){flash("Copy failed");});
 };
 </script>
 </body>
