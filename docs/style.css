@@ -21,3 +21,6 @@ th{background:var(--code)}
 .note{border-left:4px solid var(--accent);background:var(--code);padding:10px 14px;border-radius:4px}
 .lead{color:var(--muted);font-size:1.15rem}
 @media(max-width:720px){.layout{flex-direction:column}nav{width:auto;height:auto;position:static;border-right:0;border-bottom:1px solid var(--line)}main{padding:24px 20px}}
+pre{background:var(--code);border:1px solid var(--line);border-radius:6px;padding:14px;overflow:auto;white-space:pre-wrap;font-size:.9em}
+pre code{padding:0;background:none}
+button{font:inherit;background:var(--accent);color:#fff;border:0;border-radius:6px;padding:6px 14px;cursor:pointer}
