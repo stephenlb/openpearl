@@ -9,6 +9,8 @@
 
 # OpenPearl
 
+_For simple quick tasks, an AI workflow can handle it._
+
 From ticket to auto-merge. Minimal GitHub workflow. OpenPearl reads a ticket, implements it, opens a PR, reviews it in a loop and auto-merges. If it isn't confident, it hands the PR to a human.
 
 ## How it works
