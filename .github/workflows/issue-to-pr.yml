@@ -38,6 +38,8 @@ env:
   REVIEW_ROUNDS: ${{ vars.REVIEW_ROUNDS || '2' }}
   MAX_DIFF_LINES: ${{ vars.MAX_DIFF_LINES || '500' }}
   MAX_DIFF_FILES: ${{ vars.MAX_DIFF_FILES || '20' }}
+  # Set the AUTO_MERGE repo variable to 1 to always merge, skipping the eval and guards (dry-run still wins)
+  AUTO_MERGE: ${{ vars.AUTO_MERGE }}
   # Label an issue with "dry-run" to open the PR but never auto-merge it
   DRY_RUN: ${{ contains(github.event.issue.labels.*.name, 'dry-run') }}
   # Hidden marker on pipeline PR comments so pr-comment-chat.yml ignores them
@@ -384,10 +386,13 @@ jobs:
           git diff --stat "origin/$BASE...HEAD" > "$RUNNER_TEMP/diffstat.md"
 
           # Final review-only pass so the last round of fixes is also reviewed
-          agent-retry read "$GUIDANCE $REVIEW_PROMPT" > "$RUNNER_TEMP/review-final.md" || echo "Final review failed" > "$RUNNER_TEMP/review-final.md"
+          # Skipped when its result is unused (dry-run or forced auto-merge)
           final_clean=false
-          # Tolerate markdown, punctuation and case around the sentinel (e.g. "**NO ISSUES**.")
-          review-clean "$RUNNER_TEMP/review-final.md" && final_clean=true
+          if [ "$DRY_RUN" != "true" ] && [ "$AUTO_MERGE" != "1" ]; then
+            agent-retry read "$GUIDANCE $REVIEW_PROMPT" > "$RUNNER_TEMP/review-final.md" || echo "Final review failed" > "$RUNNER_TEMP/review-final.md"
+            # Tolerate markdown, punctuation and case around the sentinel (e.g. "**NO ISSUES**.")
+            review-clean "$RUNNER_TEMP/review-final.md" && final_clean=true
+          fi
 
           # Deterministic guard: never auto-merge changes to workflows, auth/secrets, or dependency manifests
           protected=$(git diff --name-only "origin/$BASE...HEAD" \
@@ -404,6 +409,9 @@ jobs:
           verdict=NO
           if [ "$DRY_RUN" = "true" ]; then
             echo "Auto-merge skipped: dry-run label is set" > "$RUNNER_TEMP/eval.md"
+          elif [ "$AUTO_MERGE" = "1" ]; then
+            echo "Auto-merge forced: AUTO_MERGE=1 (eval and guards skipped)" > "$RUNNER_TEMP/eval.md"
+            verdict=YES
           elif [ -n "$protected" ]; then
             printf 'Auto-merge blocked: diff touches sensitive paths:\n%s\n' "$protected" > "$RUNNER_TEMP/eval.md"
           elif [ "$diff_files" -gt "$MAX_DIFF_FILES" ] || [ "$diff_lines" -gt "$MAX_DIFF_LINES" ]; then
