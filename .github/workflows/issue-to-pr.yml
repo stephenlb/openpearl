@@ -38,7 +38,9 @@ env:
   REVIEW_ROUNDS: ${{ vars.REVIEW_ROUNDS || '2' }}
   MAX_DIFF_LINES: ${{ vars.MAX_DIFF_LINES || '500' }}
   MAX_DIFF_FILES: ${{ vars.MAX_DIFF_FILES || '20' }}
-  # Label an issue with "dry-run" to open the PR but never auto-merge it
+  # Set the AUTO_MERGE repo variable to 1 to always merge, skipping the eval and guards (dry-run still wins)
+  AUTO_MERGE: ${{ vars.AUTO_MERGE }}
+  # Label an issue with "dry-run"to open the PR but never auto-merge it
   DRY_RUN: ${{ contains(github.event.issue.labels.*.name, 'dry-run') }}
   # Hidden marker on pipeline PR comments so pr-comment-chat.yml ignores them
   MARKER: "<!-- openpearl -->"
@@ -393,6 +395,9 @@ jobs:
           verdict=NO
           if [ "$DRY_RUN" = "true" ]; then
             echo "Auto-merge skipped: dry-run label is set" > "$RUNNER_TEMP/eval.md"
+          elif [ "$AUTO_MERGE" = "1" ]; then
+            echo "Auto-merge forced: AUTO_MERGE=1 (eval and guards skipped)" > "$RUNNER_TEMP/eval.md"
+            verdict=YES
           elif [ -n "$protected" ]; then
             printf 'Auto-merge blocked: diff touches sensitive paths:\n%s\n' "$protected" > "$RUNNER_TEMP/eval.md"
           elif [ "$diff_files" -gt "$MAX_DIFF_FILES" ] || [ "$diff_lines" -gt "$MAX_DIFF_LINES" ]; then
