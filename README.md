@@ -23,7 +23,7 @@ When an owner, member, or collaborator opens an issue, `.github/workflows/issue-
    - `YES`: the PR is squash-merged and the issue gets a "PR Auto-Merged: …" comment.
    - Anything else: the PR stays open for a human and the issue gets a "PR Ready for Review: …" comment.
 
-Set the `AUTO_MERGE` repo variable to `1` to always merge: the eval and its guards are skipped, and the PR is squash-merged once CI passes. The `dry-run` label still prevents merging.
+Set the `AUTO_MERGE` repo variable to `1` to always merge: the eval and all its guards (protected paths, diff size, project tests) are skipped, so even changes to workflows or auth files merge without review, and the PR is squash-merged once required checks pass. The `dry-run` label still prevents merging.
 
 To add or change evals, see [EVALS.md](EVALS.md).
 

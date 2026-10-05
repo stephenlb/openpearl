@@ -40,7 +40,7 @@ env:
   MAX_DIFF_FILES: ${{ vars.MAX_DIFF_FILES || '20' }}
   # Set the AUTO_MERGE repo variable to 1 to always merge, skipping the eval and guards (dry-run still wins)
   AUTO_MERGE: ${{ vars.AUTO_MERGE }}
-  # Label an issue with "dry-run"to open the PR but never auto-merge it
+  # Label an issue with "dry-run" to open the PR but never auto-merge it
   DRY_RUN: ${{ contains(github.event.issue.labels.*.name, 'dry-run') }}
   # Hidden marker on pipeline PR comments so pr-comment-chat.yml ignores them
   MARKER: "<!-- openpearl -->"
