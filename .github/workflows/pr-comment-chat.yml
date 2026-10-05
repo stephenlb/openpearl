@@ -164,8 +164,8 @@ jobs:
         run: |
           # Conversation so far (PR comments and inline review comments)
           {
-            gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --jq '.[] | "### \(.user.login) (\(.created_at))\n\(.body)\n"'
-            gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" --jq '.[] | "### \(.user.login) on \(.path) (\(.created_at))\n\(.body)\n"'
+            gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --jq '.[] | select(.author_association | IN("OWNER","MEMBER","COLLABORATOR")) | "### \(.user.login) (\(.created_at))\n\(.body)\n"'
+            gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" --jq '.[] | select(.author_association | IN("OWNER","MEMBER","COLLABORATOR")) | "### \(.user.login) on \(.path) (\(.created_at))\n\(.body)\n"'
           } > "$RUNNER_TEMP/history.md" || true
           {
             echo "You are chatting on GitHub pull request #$PR_NUMBER in this repository. The branch $HEAD is checked out."
@@ -188,7 +188,7 @@ jobs:
           if [ -n "$(git status --porcelain)" ]; then
             git add -A
             git commit -m "Address PR comment from $COMMENT_USER" -m "$COMMENT_URL"
-            if git push origin "HEAD:$HEAD"; then
+            if git pull --rebase origin "$HEAD" && git push origin "HEAD:$HEAD"; then
               printf '\n\n_Pushed changes to `%s`._\n' "$HEAD" >> "$RUNNER_TEMP/reply.md"
             else
               printf '\n\n_Changes were made but could not be pushed._\n' >> "$RUNNER_TEMP/reply.md"

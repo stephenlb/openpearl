@@ -421,6 +421,8 @@ jobs:
           ## Auto-merge eval
 
           $(cat "$RUNNER_TEMP/eval.md")
+
+          $MARKER
           EOF
 
           # Label PRs for easy filtering and outcome tracking (best effort)
