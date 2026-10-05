@@ -101,9 +101,9 @@ jobs:
               claude)
                 args=(-p "$prompt")
                 if [ "$mode" = edit ]; then
-                  args+=(--permission-mode acceptEdits --allowedTools "$TOOLS_EDIT,Read($RUNNER_TEMP/**)")
+                  args+=(--permission-mode acceptEdits --allowedTools "$TOOLS_EDIT,Read(/$RUNNER_TEMP/**)")
                 else
-                  args+=(--allowedTools "$TOOLS_REVIEW,Read($RUNNER_TEMP/**)")
+                  args+=(--allowedTools "$TOOLS_REVIEW,Read(/$RUNNER_TEMP/**)")
                 fi
                 [ -n "$turns" ] && args+=(--max-turns "$turns")
                 claude "${args[@]}"
@@ -299,7 +299,7 @@ jobs:
 
             if review-clean "$RUNNER_TEMP/review-$round.md"; then
               gh issue comment "$ISSUE_NUMBER" --body "Code review round $round: no issues found."
-              continue
+              break
             fi
 
             gh issue comment "$ISSUE_NUMBER" --body "Code review round $round found issues; applying fixes..."
