@@ -438,7 +438,10 @@ jobs:
             # `gh pr checks` exits non-zero when a PR has no checks, so only watch if some exist
             check_count=$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup | length')
             if { [ "$check_count" = "0" ] || gh pr checks "$PR_NUMBER" --watch --fail-fast; } \
-              && gh pr merge "$PR_NUMBER" --squash --delete-branch; then
+              && gh pr merge "$PR_NUMBER" --squash --delete-branch \
+                --subject "$(gh pr view "$PR_NUMBER" --json title --jq .title) (#$PR_NUMBER)" \
+                --body ""; then
+              # explicit empty --body drops the auto-generated Co-authored-by trailer
               label auto-merged 0e8a16
               echo "merged=true" >> "$GITHUB_OUTPUT"
               gh issue comment "$ISSUE_NUMBER" --body "PR Auto-Merged: $PR_URL"
