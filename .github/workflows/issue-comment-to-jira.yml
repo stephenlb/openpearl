@@ -10,8 +10,10 @@ permissions:
 jobs:
   mirror:
     # Comment bodies are untrusted: only mirror comments from trusted authors.
+    # Skip (no job started) unless the issue is linked to a Jira ticket.
     if: >-
       !github.event.issue.pull_request &&
+      contains(github.event.issue.body, '<!-- jira-key:') &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-latest
     timeout-minutes: 5
