@@ -1,0 +1,38 @@
+name: Retry Issue to PR
+
+on:
+  workflow_run:
+    workflows: ["Issue to PR"]
+    types: [completed]
+
+permissions:
+  actions: write
+
+env:
+  MAX_ATTEMPTS: 3
+
+jobs:
+  retry:
+    # Only failed runs that still have attempts left
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.run_attempt < 3
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Re-run if no runner was ever acquired
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          # A job that never got a runner has no runner_id (and no steps).
+          # Real failures (agent errors, bad output) are not retried.
+          unstarted=$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/jobs" \
+            --jq '[.jobs[] | select(.conclusion == "failure" and (.runner_id == null or .runner_id == 0 or (.steps | length) == 0))] | length')
+          if [ "$unstarted" -eq 0 ]; then
+            echo "Failure happened after the job started; not retrying."
+            exit 0
+          fi
+          echo "Run $RUN_ID had $unstarted job(s) that never started; re-running."
+          gh run rerun "$RUN_ID" --failed
