@@ -375,10 +375,13 @@ jobs:
           git diff --stat "origin/$BASE...HEAD" > "$RUNNER_TEMP/diffstat.md"
 
           # Final review-only pass so the last round of fixes is also reviewed
-          agent-retry read "$GUIDANCE $REVIEW_PROMPT" > "$RUNNER_TEMP/review-final.md" || echo "Final review failed" > "$RUNNER_TEMP/review-final.md"
+          # Skipped when its result is unused (dry-run or forced auto-merge)
           final_clean=false
-          # Tolerate markdown, punctuation and case around the sentinel (e.g. "**NO ISSUES**.")
-          review-clean "$RUNNER_TEMP/review-final.md" && final_clean=true
+          if [ "$DRY_RUN" != "true" ] && [ "$AUTO_MERGE" != "1" ]; then
+            agent-retry read "$GUIDANCE $REVIEW_PROMPT" > "$RUNNER_TEMP/review-final.md" || echo "Final review failed" > "$RUNNER_TEMP/review-final.md"
+            # Tolerate markdown, punctuation and case around the sentinel (e.g. "**NO ISSUES**.")
+            review-clean "$RUNNER_TEMP/review-final.md" && final_clean=true
+          fi
 
           # Deterministic guard: never auto-merge changes to workflows, auth/secrets, or dependency manifests
           protected=$(git diff --name-only "origin/$BASE...HEAD" \
