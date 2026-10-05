@@ -25,6 +25,15 @@ To add or change evals, see [EVALS.md](EVALS.md).
 
 Images attached to the issue are downloaded so Claude can view them.
 
+## PR comment chat
+
+`.github/workflows/pr-comment-chat.yml` lets you talk to the agent on a PR. When an owner, member, or collaborator comments on an open PR (a regular comment or an inline review comment), the agent evaluates it:
+
+- Questions and discussion get a reply comment.
+- Change requests are implemented, committed and pushed to the PR branch, and the reply says what changed.
+
+PRs from forks are ignored, as are bot comments and the pipeline's own comments (they carry a hidden `<!-- openpearl -->` marker). The reply is posted with `PUSH_TOKEN` if set, so set it if you want replies to be attributed to that account. Pushes made with the built-in `GITHUB_TOKEN` don't trigger CI.
+
 ## Setup
 
 1. Copy the `.github/workflows/` directory (the workflow files and the `evals/` folder) from this repository into the root of your own project, then commit and push it. Only copy the Jira and Trello workflows if you use those integrations.

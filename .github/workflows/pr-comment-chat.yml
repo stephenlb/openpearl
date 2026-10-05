@@ -1,0 +1,198 @@
+name: PR Comment Chat
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: pr-chat-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+  GH_REPO: ${{ github.repository }}
+  GH_TOKEN: ${{ secrets.PUSH_TOKEN || github.token }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  CLAUDE_CODE_USE_BEDROCK: ${{ secrets.CLAUDE_CODE_USE_BEDROCK }}
+  AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+  ANTHROPIC_SMALL_FAST_MODEL: ${{ secrets.ANTHROPIC_SMALL_FAST_MODEL }}
+  AGENT_CLI: ${{ vars.AGENT_CLI || 'claude' }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  AGENT_MODEL: ${{ secrets.AGENT_MODEL }}
+  GUIDANCE: "If CLAUDE.md or AGENTS.md exists in the repository root, read it first and follow the conventions it describes."
+  TOOLS_EDIT: "Read,Edit,Write,Glob,Grep,Bash(git diff:*),Bash(git status:*),Bash(git log:*),Bash(ls:*),Bash(npm:*),Bash(npx:*),Bash(cp:*)"
+  TOOLS_REVIEW: "Read,Glob,Grep,Bash(git diff:*),Bash(git log:*),Bash(git status:*)"
+  # Hidden marker on every pipeline comment; comments carrying it never trigger this workflow
+  MARKER: "<!-- openpearl -->"
+
+jobs:
+  chat:
+    # Comment bodies are untrusted prompt input: only react to trusted authors, never to bots.
+    # issue_comment also fires for plain issues, so require a PR.
+    if: >-
+      (github.event_name == 'pull_request_review_comment' || github.event.issue.pull_request) &&
+      github.event.comment.user.type != 'Bot' &&
+      !contains(github.event.comment.body, '<!-- openpearl -->') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PUSH_TOKEN || github.token }}
+
+      - name: Check out the PR branch
+        id: pr
+        run: |
+          gh pr view "$PR_NUMBER" --json state,headRefName,baseRefName,isCrossRepository,title,body > "$RUNNER_TEMP/pr.json"
+          if [ "$(jq -r '.state' "$RUNNER_TEMP/pr.json")" != OPEN ]; then
+            echo "PR is not open; nothing to do"; echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ "$(jq -r '.isCrossRepository' "$RUNNER_TEMP/pr.json")" = true ]; then
+            echo "PR comes from a fork; skipping"; echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          head=$(jq -r '.headRefName' "$RUNNER_TEMP/pr.json")
+          base=$(jq -r '.baseRefName' "$RUNNER_TEMP/pr.json")
+          git fetch origin "$head" "$base"
+          git checkout -B "$head" "origin/$head"
+          echo "head=$head" >> "$GITHUB_OUTPUT"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "run=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        if: steps.pr.outputs.run == 'true'
+        with:
+          node-version: 22
+
+      - name: Install agent CLI
+        if: steps.pr.outputs.run == 'true'
+        run: |
+          case "$AGENT_CLI" in
+            claude) npm install -g @anthropic-ai/claude-code ;;
+            opencode) npm install -g opencode-ai ;;
+            codex) npm install -g @openai/codex ;;
+            *) echo "Unsupported AGENT_CLI '$AGENT_CLI' (use claude, opencode, or codex)"; exit 1 ;;
+          esac
+
+      - name: Install agent wrapper
+        if: steps.pr.outputs.run == 'true'
+        run: |
+          # Usage: agent-retry <read|edit> <prompt> [max-turns]
+          # Same wrapper as issue-to-pr.yml: runs the selected agent CLI and prints its final answer.
+          mkdir -p "$RUNNER_TEMP/bin"
+          cat > "$RUNNER_TEMP/bin/agent-retry" <<'SCRIPT'
+          #!/usr/bin/env bash
+          mode=$1 prompt=$2 turns=$3
+          out=$(mktemp)
+          run_agent() {
+            case "$AGENT_CLI" in
+              claude)
+                args=(-p "$prompt")
+                if [ "$mode" = edit ]; then
+                  args+=(--permission-mode acceptEdits --allowedTools "$TOOLS_EDIT,Read($RUNNER_TEMP/**)")
+                else
+                  args+=(--allowedTools "$TOOLS_REVIEW,Read($RUNNER_TEMP/**)")
+                fi
+                [ -n "$turns" ] && args+=(--max-turns "$turns")
+                claude "${args[@]}"
+                ;;
+              opencode)
+                ext="\"external_directory\":{\"$RUNNER_TEMP/**\":\"allow\"}"
+                if [ "$mode" = edit ]; then
+                  export OPENCODE_PERMISSION='{"edit":"allow",'"$ext"',"bash":{"*":"deny","git diff*":"allow","git log*":"allow","git status*":"allow","ls*":"allow","npm*":"allow","npx*":"allow","cp *":"allow","git diff*--output*":"deny","git log*--output*":"deny"},"webfetch":"deny"}'
+                else
+                  export OPENCODE_PERMISSION='{"edit":"deny","webfetch":"deny",'"$ext"',"bash":{"*":"deny","git diff*":"allow","git log*":"allow","git status*":"allow","git diff*--output*":"deny","git log*--output*":"deny"}}'
+                fi
+                args=(run)
+                [ -n "$AGENT_MODEL" ] && args+=(-m "$AGENT_MODEL")
+                opencode "${args[@]}" "$prompt"
+                ;;
+              codex)
+                export CODEX_API_KEY="${CODEX_API_KEY:-$OPENAI_API_KEY}"
+                local sandbox=read-only last rc
+                [ "$mode" = edit ] && sandbox=workspace-write
+                last=$(mktemp)
+                args=(exec --sandbox "$sandbox" --skip-git-repo-check --output-last-message "$last")
+                [ -n "$AGENT_MODEL" ] && args+=(-m "$AGENT_MODEL")
+                codex "${args[@]}" "$prompt" >&2
+                rc=$?
+                [ "$rc" -eq 0 ] && cat "$last"
+                rm -f "$last"
+                return $rc
+                ;;
+            esac
+          }
+          for attempt in 1 2 3; do
+            if run_agent > "$out"; then
+              cat "$out"; rm -f "$out"; exit 0
+            fi
+            echo "$AGENT_CLI failed (attempt $attempt/3)" >&2
+            [ "$attempt" -lt 3 ] && sleep $((attempt * 20))
+          done
+          rm -f "$out"
+          exit 1
+          SCRIPT
+          chmod +x "$RUNNER_TEMP/bin/agent-retry"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Configure git
+        if: steps.pr.outputs.run == 'true'
+        run: |
+          git config user.name "claude[bot]"
+          git config user.email "claude[bot]@users.noreply.github.com"
+
+      - name: Respond to comment
+        if: steps.pr.outputs.run == 'true'
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_USER: ${{ github.event.comment.user.login }}
+          COMMENT_URL: ${{ github.event.comment.html_url }}
+          COMMENT_PATH: ${{ github.event.comment.path }}
+          COMMENT_DIFF_HUNK: ${{ github.event.comment.diff_hunk }}
+          HEAD: ${{ steps.pr.outputs.head }}
+          BASE: ${{ steps.pr.outputs.base }}
+        run: |
+          # Conversation so far (PR comments and inline review comments)
+          {
+            gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --jq '.[] | "### \(.user.login) (\(.created_at))\n\(.body)\n"'
+            gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" --jq '.[] | "### \(.user.login) on \(.path) (\(.created_at))\n\(.body)\n"'
+          } > "$RUNNER_TEMP/history.md" || true
+          {
+            echo "You are chatting on GitHub pull request #$PR_NUMBER in this repository. The branch $HEAD is checked out."
+            echo "$GUIDANCE"
+            echo "Evaluate the latest comment below and decide what it asks for:"
+            echo "- A question, discussion or praise: answer it. Do not change files."
+            echo "- A request for a change (fix, refactor, tests, review feedback to apply): modify the codebase to do it, following existing conventions. Do not run git commit or git push; that is handled for you."
+            echo "- Something you disagree with or cannot do: explain why instead of changing files."
+            echo "PR details and the earlier conversation are in $RUNNER_TEMP/pr.json and $RUNNER_TEMP/history.md; use Read if you need them. Use 'git diff origin/$BASE...HEAD' to see the PR changes."
+            echo "Your final output is posted as a reply comment: keep it short, in markdown, and say what you changed if anything."
+            echo
+            echo "# Latest comment by $COMMENT_USER"
+            [ -z "$COMMENT_PATH" ] || { echo "On file $COMMENT_PATH, diff context:"; echo '```diff'; echo "$COMMENT_DIFF_HUNK"; echo '```'; }
+            echo
+            echo "$COMMENT_BODY"
+          } > "$RUNNER_TEMP/prompt.md"
+          if ! agent-retry edit "$(cat "$RUNNER_TEMP/prompt.md")" 40 > "$RUNNER_TEMP/reply.md" || [ ! -s "$RUNNER_TEMP/reply.md" ]; then
+            echo "I couldn't process this comment. See the [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)." > "$RUNNER_TEMP/reply.md"
+          fi
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "Address PR comment from $COMMENT_USER" -m "$COMMENT_URL"
+            if git push origin "HEAD:$HEAD"; then
+              printf '\n\n_Pushed changes to `%s`._\n' "$HEAD" >> "$RUNNER_TEMP/reply.md"
+            else
+              printf '\n\n_Changes were made but could not be pushed._\n' >> "$RUNNER_TEMP/reply.md"
+            fi
+          fi
+          printf '\n%s\n' "$MARKER" >> "$RUNNER_TEMP/reply.md"
+          gh pr comment "$PR_NUMBER" --body-file "$RUNNER_TEMP/reply.md"
