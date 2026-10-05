@@ -11,6 +11,7 @@ jobs:
   mirror:
     # Comment bodies are untrusted: only mirror comments from trusted authors.
     # Skip the job entirely (instead of a no-op run) when the issue isn't linked to a Jira ticket.
+
     if: >-
       !github.event.issue.pull_request &&
       contains(github.event.issue.body, '<!-- jira-key:') &&
