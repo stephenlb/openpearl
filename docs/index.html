@@ -14,19 +14,21 @@
     <h4>Docs</h4>
     <a class="link active" href="./">Overview</a>
     <a class="link" href="https://github.com/stephenlb/openpearl">GitHub</a>
+    <a class="link" href="https://github.com/stephenlb/openpearl#setup">Setup</a>
+    <a class="link" href="https://github.com/stephenlb/openpearl/issues">Issues</a>
     <a class="link" href="https://discord.gg/mygDNrQ7DJ">Discord</a>
   </nav>
   <main>
     <img class="logo" alt="OpenPearl logo" src="openpearl.jpg">
     <h1>OpenPearl</h1>
     <p class="lead">Ticket to auto-merge. Minimal GitHub workflow.</p>
-    <p>OpenPearl reads a ticket, implements it, opens a PR, reviews it in a loop and auto-merges. All as a GitHub workflow. If it isn't confident, it hands the PR to a human.</p>
+    <p>OpenPearl is open source on <a href="https://github.com/stephenlb/openpearl">GitHub</a>. It reads a ticket, implements it, opens a PR, reviews it in a loop and auto-merges. All as a GitHub workflow. If it isn't confident, it hands the PR to a human.</p>
     <h2>How it works</h2>
-    <p>When an owner, member, or collaborator opens an issue, <code>.github/workflows/issue-to-pr.yml</code> runs:</p>
+    <p>When an owner, member, or collaborator opens an issue, <a href="https://github.com/stephenlb/openpearl/blob/main/.github/workflows/issue-to-pr.yml"><code>.github/workflows/issue-to-pr.yml</code></a> runs:</p>
     <ol>
       <li>The agent implements the issue and opens a PR.</li>
       <li>The agent CLI runs two review/fix rounds.</li>
-      <li>The agent CLI runs the eval in <code>.github/workflows/evals/pr-ready-to-merge.md</code>. On <code>YES</code> the PR is squash-merged; otherwise it stays open for a human.</li>
+      <li>The agent CLI runs the eval in <a href="https://github.com/stephenlb/openpearl/blob/main/.github/workflows/evals/pr-ready-to-merge.md"><code>.github/workflows/evals/pr-ready-to-merge.md</code></a>. On <code>YES</code> the PR is squash-merged; otherwise it stays open for a human.</li>
     </ol>
     <h2>Install</h2>
     <p>Paste this prompt into your coding agent (Claude Code, Codex, OpenCode) from the root of your project. It installs the OpenPearl workflow files.</p>
