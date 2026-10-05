@@ -40,6 +40,8 @@ env:
   MAX_DIFF_FILES: ${{ vars.MAX_DIFF_FILES || '20' }}
   # Label an issue with "dry-run" to open the PR but never auto-merge it
   DRY_RUN: ${{ contains(github.event.issue.labels.*.name, 'dry-run') }}
+  # Hidden marker on pipeline PR comments so pr-comment-chat.yml ignores them
+  MARKER: "<!-- openpearl -->"
   GUIDANCE: "If CLAUDE.md or AGENTS.md exists in the repository root, read it first and follow the conventions it describes."
   TOOLS_EDIT: "Read,Edit,Write,Glob,Grep,Bash(git diff:*),Bash(git status:*),Bash(git log:*),Bash(ls:*),Bash(npm:*),Bash(npx:*),Bash(cp:*),Bash(identify:*),Bash(convert:*)"
   REVIEW_PROMPT: "Code review the changes on this branch: run 'git diff origin/${{ github.event.repository.default_branch }}...HEAD'. Look for correctness bugs, missing tests, security issues, and clear maintainability problems. Output a concise markdown list of concrete findings with file and line, most severe first. If there is nothing worth fixing, output exactly: NO ISSUES"
@@ -295,6 +297,8 @@ jobs:
           ## Code review (round $round)
 
           $(cat "$RUNNER_TEMP/review-$round.md")
+
+          $MARKER
           EOF
 
             if review-clean "$RUNNER_TEMP/review-$round.md"; then
@@ -417,6 +421,8 @@ jobs:
           ## Auto-merge eval
 
           $(cat "$RUNNER_TEMP/eval.md")
+
+          $MARKER
           EOF
 
           # Label PRs for easy filtering and outcome tracking (best effort)
