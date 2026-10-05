@@ -28,8 +28,9 @@ env:
   AGENT_CLI: ${{ vars.AGENT_CLI || 'claude' }}
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   AGENT_MODEL: ${{ secrets.AGENT_MODEL }}
+  MAX_DIFF_FILES: ${{ vars.MAX_DIFF_FILES || '20' }}
   GUIDANCE: "If CLAUDE.md or AGENTS.md exists in the repository root, read it first and follow the conventions it describes."
-  TOOLS_EDIT: "Read,Edit,Write,Glob,Grep,Bash(git diff:*),Bash(git status:*),Bash(git log:*),Bash(ls:*),Bash(npm:*),Bash(npx:*),Bash(cp:*)"
+  TOOLS_EDIT: "Read,Edit,Write,Glob,Grep,Bash(git diff:*),Bash(git status:*),Bash(git log:*),Bash(ls:*),Bash(cp:*)"
   TOOLS_REVIEW: "Read,Glob,Grep,Bash(git diff:*),Bash(git log:*),Bash(git status:*)"
   # Hidden marker on every pipeline comment; comments carrying it never trigger this workflow
   MARKER: "<!-- openpearl -->"
@@ -38,6 +39,7 @@ jobs:
   chat:
     # Comment bodies are untrusted prompt input: only react to trusted authors, never to bots.
     # issue_comment also fires for plain issues, so require a PR.
+    # The marker literal below must match MARKER in env (env is not available in job-level if).
     if: >-
       (github.event_name == 'pull_request_review_comment' || github.event.issue.pull_request) &&
       github.event.comment.user.type != 'Bot' &&
@@ -109,7 +111,7 @@ jobs:
               opencode)
                 ext="\"external_directory\":{\"$RUNNER_TEMP/**\":\"allow\"}"
                 if [ "$mode" = edit ]; then
-                  export OPENCODE_PERMISSION='{"edit":"allow",'"$ext"',"bash":{"*":"deny","git diff*":"allow","git log*":"allow","git status*":"allow","ls*":"allow","npm*":"allow","npx*":"allow","cp *":"allow","git diff*--output*":"deny","git log*--output*":"deny"},"webfetch":"deny"}'
+                  export OPENCODE_PERMISSION='{"edit":"allow",'"$ext"',"bash":{"*":"deny","git diff*":"allow","git log*":"allow","git status*":"allow","ls*":"allow","cp *":"allow","git diff*--output*":"deny","git log*--output*":"deny"},"webfetch":"deny"}'
                 else
                   export OPENCODE_PERMISSION='{"edit":"deny","webfetch":"deny",'"$ext"',"bash":{"*":"deny","git diff*":"allow","git log*":"allow","git status*":"allow","git diff*--output*":"deny","git log*--output*":"deny"}}'
                 fi
@@ -184,6 +186,15 @@ jobs:
           } > "$RUNNER_TEMP/prompt.md"
           if ! agent-retry edit "$(cat "$RUNNER_TEMP/prompt.md")" 40 > "$RUNNER_TEMP/reply.md" || [ ! -s "$RUNNER_TEMP/reply.md" ]; then
             echo "I couldn't process this comment. See the [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)." > "$RUNNER_TEMP/reply.md"
+          fi
+          # Never let the agent change CI configuration
+          git checkout HEAD -- .github 2>/dev/null || true
+          git clean -fdq -- .github
+          [[ "$MAX_DIFF_FILES" =~ ^[1-9][0-9]*$ ]] || MAX_DIFF_FILES=20
+          changed_files=$(git status --porcelain | wc -l)
+          if [ "$changed_files" -gt "$MAX_DIFF_FILES" ]; then
+            git checkout HEAD -- . && git clean -fdq
+            printf '\n\n_Discarded changes: too many files modified (%s, limit %s)._\n' "$changed_files" "$MAX_DIFF_FILES" >> "$RUNNER_TEMP/reply.md"
           fi
           if [ -n "$(git status --porcelain)" ]; then
             git add -A
