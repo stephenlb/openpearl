@@ -24,6 +24,8 @@
     <p class="lead">Ticket to auto-merge. Minimal GitHub workflow.</p>
     <p class="lead">For simple quick tasks, an AI workflow can handle it.</p>
     <p>OpenPearl is open source on <a href="https://github.com/stephenlb/openpearl">GitHub</a>. It reads a ticket, implements it, opens a PR, reviews it in a loop and auto-merges. All as a GitHub workflow. If it isn't confident, it hands the PR to a human.</p>
+    <h2>Why not markdown files?</h2>
+    <p>Instead of piling instructions into markdown files (<code>CLAUDE.md</code>, <code>AGENTS.md</code>, rules and memory docs) that get loaded into the agent's context on every run, OpenPearl uses workflow orchestration and evals. The workflow drives each step (implement, review, fix, merge) as a separate, focused agent call, and evals decide whether a PR is ready to merge. Context isn't consumed by standing instructions, so the agent keeps its context for the actual task.</p>
     <h2>How it works</h2>
     <p>When an owner, member, or collaborator opens an issue, <a href="https://github.com/stephenlb/openpearl/blob/main/.github/workflows/issue-to-pr.yml"><code>.github/workflows/issue-to-pr.yml</code></a> runs:</p>
     <ol>
