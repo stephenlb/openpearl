@@ -313,6 +313,17 @@ jobs:
               git commit -m "Address code review feedback (round $round)"
               git push
             fi
+
+            # Confirm each finding from this round was fixed or deliberately skipped
+            agent-retry read "$GUIDANCE Confirm that the findings in $RUNNER_TEMP/review-$round.md are addressed in the current branch: run 'git diff origin/$BASE...HEAD' and inspect the code. Output a concise markdown list with one line per finding, each marked FIXED, SKIPPED (with the reason, e.g. the finding was incorrect) or NOT FIXED." 15 > "$RUNNER_TEMP/verify-$round.md" \
+              || echo "_Fix verification unavailable._" > "$RUNNER_TEMP/verify-$round.md"
+            cat "$RUNNER_TEMP/verify-$round.md"
+
+            gh pr comment "$PR_NUMBER" --body-file - <<EOF
+          ## Fix verification (round $round)
+
+          $(cat "$RUNNER_TEMP/verify-$round.md")
+          EOF
           done
 
       - name: Summarize completed work
