@@ -9,6 +9,8 @@
 
 # OpenPearl
 
+_For simple quick tasks, an AI workflow can handle it._
+
 From ticket to auto-merge. Minimal GitHub workflow. OpenPearl reads a ticket, implements it, opens a PR, reviews it in a loop and auto-merges. If it isn't confident, it hands the PR to a human.
 
 ## How it works
@@ -16,14 +18,25 @@ From ticket to auto-merge. Minimal GitHub workflow. OpenPearl reads a ticket, im
 When an owner, member, or collaborator opens an issue, `.github/workflows/issue-to-pr.yml` runs:
 
 1. The agent (Claude Code by default; OpenCode or Codex optional) implements the issue and opens a PR.
-2. The agent CLI (Claude by default) runs two review/fix rounds.
+2. The agent CLI (Claude by default) runs two review/fix rounds, confirming after each fix that every finding was addressed.
 3. The agent CLI runs the eval in `.github/workflows/evals/pr-ready-to-merge.md`.
    - `YES`: the PR is squash-merged and the issue gets a "PR Auto-Merged: …" comment.
    - Anything else: the PR stays open for a human and the issue gets a "PR Ready for Review: …" comment.
 
+Set the `AUTO_MERGE` repo variable to `1` to always merge: the eval and all its guards (protected paths, diff size, project tests) are skipped, so even changes to workflows or auth files merge without review, and the PR is squash-merged once required checks pass. The `dry-run` label still prevents merging.
+
 To add or change evals, see [EVALS.md](EVALS.md).
 
 Images attached to the issue are downloaded so Claude can view them.
+
+## PR comment chat
+
+`.github/workflows/pr-comment-chat.yml` lets you talk to the agent on a PR. When an owner, member, or collaborator comments on an open PR (a regular comment or an inline review comment), the agent evaluates it:
+
+- Questions and discussion get a reply comment.
+- Change requests are implemented, committed and pushed to the PR branch, and the reply says what changed.
+
+PRs from forks are ignored, as are bot comments and the pipeline's own comments (they carry a hidden `<!-- openpearl -->` marker). The reply is posted with `PUSH_TOKEN` if set, so set it if you want replies to be attributed to that account. Pushes made with the built-in `GITHUB_TOKEN` don't trigger CI.
 
 ## Setup
 

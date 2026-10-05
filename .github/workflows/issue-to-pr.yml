@@ -38,8 +38,12 @@ env:
   REVIEW_ROUNDS: ${{ vars.REVIEW_ROUNDS || '2' }}
   MAX_DIFF_LINES: ${{ vars.MAX_DIFF_LINES || '500' }}
   MAX_DIFF_FILES: ${{ vars.MAX_DIFF_FILES || '20' }}
+  # Set the AUTO_MERGE repo variable to 1 to always merge, skipping the eval and guards (dry-run still wins)
+  AUTO_MERGE: ${{ vars.AUTO_MERGE }}
   # Label an issue with "dry-run" to open the PR but never auto-merge it
   DRY_RUN: ${{ contains(github.event.issue.labels.*.name, 'dry-run') }}
+  # Hidden marker on pipeline PR comments so pr-comment-chat.yml ignores them
+  MARKER: "<!-- openpearl -->"
   GUIDANCE: "If CLAUDE.md or AGENTS.md exists in the repository root, read it first and follow the conventions it describes."
   TOOLS_EDIT: "Read,Edit,Write,Glob,Grep,Bash(git diff:*),Bash(git status:*),Bash(git log:*),Bash(ls:*),Bash(npm:*),Bash(npx:*),Bash(cp:*),Bash(identify:*),Bash(convert:*)"
   REVIEW_PROMPT: "Code review the changes on this branch: run 'git diff origin/${{ github.event.repository.default_branch }}...HEAD'. Look for correctness bugs, missing tests, security issues, and clear maintainability problems. Output a concise markdown list of concrete findings with file and line, most severe first. If there is nothing worth fixing, output exactly: NO ISSUES"
@@ -101,9 +105,9 @@ jobs:
               claude)
                 args=(-p "$prompt")
                 if [ "$mode" = edit ]; then
-                  args+=(--permission-mode acceptEdits --allowedTools "$TOOLS_EDIT,Read($RUNNER_TEMP/**)")
+                  args+=(--permission-mode acceptEdits --allowedTools "$TOOLS_EDIT,Read(/$RUNNER_TEMP/**)")
                 else
-                  args+=(--allowedTools "$TOOLS_REVIEW,Read($RUNNER_TEMP/**)")
+                  args+=(--allowedTools "$TOOLS_REVIEW,Read(/$RUNNER_TEMP/**)")
                 fi
                 [ -n "$turns" ] && args+=(--max-turns "$turns")
                 claude "${args[@]}"
@@ -295,11 +299,13 @@ jobs:
           ## Code review (round $round)
 
           $(cat "$RUNNER_TEMP/review-$round.md")
+
+          $MARKER
           EOF
 
             if review-clean "$RUNNER_TEMP/review-$round.md"; then
               gh issue comment "$ISSUE_NUMBER" --body "Code review round $round: no issues found."
-              continue
+              break
             fi
 
             gh issue comment "$ISSUE_NUMBER" --body "Code review round $round found issues; applying fixes..."
@@ -313,6 +319,17 @@ jobs:
               git commit -m "Address code review feedback (round $round)"
               git push
             fi
+
+            # Confirm each finding from this round was fixed or deliberately skipped
+            agent-retry read "$GUIDANCE Confirm that the findings in $RUNNER_TEMP/review-$round.md are addressed in the current branch: run 'git diff origin/$BASE...HEAD' and inspect the code. Output a concise markdown list with one line per finding, each marked FIXED, SKIPPED (with the reason, e.g. the finding was incorrect) or NOT FIXED." 15 > "$RUNNER_TEMP/verify-$round.md" \
+              || echo "_Fix verification unavailable._" > "$RUNNER_TEMP/verify-$round.md"
+            cat "$RUNNER_TEMP/verify-$round.md"
+
+            gh pr comment "$PR_NUMBER" --body-file - <<EOF
+          ## Fix verification (round $round)
+
+          $(cat "$RUNNER_TEMP/verify-$round.md")
+          EOF
           done
 
       - name: Summarize completed work
@@ -369,10 +386,13 @@ jobs:
           git diff --stat "origin/$BASE...HEAD" > "$RUNNER_TEMP/diffstat.md"
 
           # Final review-only pass so the last round of fixes is also reviewed
-          agent-retry read "$GUIDANCE $REVIEW_PROMPT" > "$RUNNER_TEMP/review-final.md" || echo "Final review failed" > "$RUNNER_TEMP/review-final.md"
+          # Skipped when its result is unused (dry-run or forced auto-merge)
           final_clean=false
-          # Tolerate markdown, punctuation and case around the sentinel (e.g. "**NO ISSUES**.")
-          review-clean "$RUNNER_TEMP/review-final.md" && final_clean=true
+          if [ "$DRY_RUN" != "true" ] && [ "$AUTO_MERGE" != "1" ]; then
+            agent-retry read "$GUIDANCE $REVIEW_PROMPT" > "$RUNNER_TEMP/review-final.md" || echo "Final review failed" > "$RUNNER_TEMP/review-final.md"
+            # Tolerate markdown, punctuation and case around the sentinel (e.g. "**NO ISSUES**.")
+            review-clean "$RUNNER_TEMP/review-final.md" && final_clean=true
+          fi
 
           # Deterministic guard: never auto-merge changes to workflows, auth/secrets, or dependency manifests
           protected=$(git diff --name-only "origin/$BASE...HEAD" \
@@ -389,6 +409,9 @@ jobs:
           verdict=NO
           if [ "$DRY_RUN" = "true" ]; then
             echo "Auto-merge skipped: dry-run label is set" > "$RUNNER_TEMP/eval.md"
+          elif [ "$AUTO_MERGE" = "1" ]; then
+            echo "Auto-merge forced: AUTO_MERGE=1 (eval and guards skipped)" > "$RUNNER_TEMP/eval.md"
+            verdict=YES
           elif [ -n "$protected" ]; then
             printf 'Auto-merge blocked: diff touches sensitive paths:\n%s\n' "$protected" > "$RUNNER_TEMP/eval.md"
           elif [ "$diff_files" -gt "$MAX_DIFF_FILES" ] || [ "$diff_lines" -gt "$MAX_DIFF_LINES" ]; then
@@ -417,6 +440,8 @@ jobs:
           ## Auto-merge eval
 
           $(cat "$RUNNER_TEMP/eval.md")
+
+          $MARKER
           EOF
 
           # Label PRs for easy filtering and outcome tracking (best effort)
@@ -432,7 +457,10 @@ jobs:
             # `gh pr checks` exits non-zero when a PR has no checks, so only watch if some exist
             check_count=$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup | length')
             if { [ "$check_count" = "0" ] || gh pr checks "$PR_NUMBER" --watch --fail-fast; } \
-              && gh pr merge "$PR_NUMBER" --squash --delete-branch; then
+              && gh pr merge "$PR_NUMBER" --squash --delete-branch \
+                --subject "$(gh pr view "$PR_NUMBER" --json title --jq .title) (#$PR_NUMBER)" \
+                --body ""; then
+              # explicit empty --body drops the auto-generated Co-authored-by trailer
               label auto-merged 0e8a16
               echo "merged=true" >> "$GITHUB_OUTPUT"
               gh issue comment "$ISSUE_NUMBER" --body "PR Auto-Merged: $PR_URL"
