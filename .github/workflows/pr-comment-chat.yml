@@ -83,7 +83,8 @@ jobs:
             claude) npm install -g @anthropic-ai/claude-code ;;
             opencode) npm install -g opencode-ai ;;
             codex) npm install -g @openai/codex ;;
-            *) echo "Unsupported AGENT_CLI '$AGENT_CLI' (use claude, opencode, or codex)"; exit 1 ;;
+            pi) npm install -g @mariozechner/pi-coding-agent ;;
+            *) echo "Unsupported AGENT_CLI '$AGENT_CLI' (use claude, opencode, codex, or pi)"; exit 1 ;;
           esac
 
       - name: Install agent wrapper
@@ -131,6 +132,18 @@ jobs:
                 [ "$rc" -eq 0 ] && cat "$last"
                 rm -f "$last"
                 return $rc
+                ;;
+              pi)
+                # Pi has no permission prompts: review mode gets read-only tools (no shell)
+                local tools=read,grep,find,ls
+                [ "$mode" = edit ] && tools=read,bash,edit,write,grep,find,ls
+                # no shell in review mode, so append the branch diff to the prompt
+                if [ "$mode" != edit ] && [ -n "$BASE" ]; then
+                  prompt+=$'\n\nOutput of git diff origin/'"$BASE"$'...HEAD:\n'"$(git diff "origin/$BASE...HEAD" 2>&1)"
+                fi
+                args=(-p --tools "$tools")
+                [ -n "$AGENT_MODEL" ] && args+=(--model "$AGENT_MODEL")
+                pi "${args[@]}" "$prompt"
                 ;;
             esac
           }

@@ -21,7 +21,7 @@ Instead of piling instructions into markdown files (`CLAUDE.md`, `AGENTS.md`, ru
 
 When an owner, member, or collaborator opens an issue, `.github/workflows/issue-to-pr.yml` runs:
 
-1. The agent (Claude Code by default; OpenCode or Codex optional) implements the issue and opens a PR.
+1. The agent (Claude Code by default; OpenCode, Codex, or Pi optional) implements the issue and opens a PR.
 2. The agent CLI (Claude by default) runs two review/fix rounds, confirming after each fix that every finding was addressed.
 3. The agent CLI runs the eval in `.github/workflows/evals/pr-ready-to-merge.md`.
    - `YES`: the PR is squash-merged and the issue gets a "PR Auto-Merged: …" comment.
@@ -96,9 +96,9 @@ Enable model access in the Bedrock console for your region. If `ANTHROPIC_MODEL`
 
 All values above are stored as secrets.
 
-## Optional: OpenCode or Codex
+## Optional: OpenCode, Codex, or Pi
 
-Claude Code is the default agent. To use another CLI, set the `AGENT_CLI` repository variable to `opencode` or `codex` and follow the matching section below. To go back to Claude Code, delete the `AGENT_CLI` variable or set it to `claude`.
+Claude Code is the default agent. To use another CLI, set the `AGENT_CLI` repository variable to `opencode`, `codex`, or `pi` and follow the matching section below. To go back to Claude Code, delete the `AGENT_CLI` variable or set it to `claude`.
 
 ### Using OpenCode
 
@@ -145,6 +145,26 @@ Notes:
 - The max-turns limit used with Claude Code is not applied; the job's 60-minute timeout still bounds a run.
 - Codex reads an `AGENTS.md` in the repository root for conventions, if one exists.
 - Edit `.github/workflows/issue-to-pr.yml` (the `agent-retry` wrapper) to change flags or sandbox modes.
+
+### Using Pi
+
+Run the OpenPearl workflow with the [Pi](https://github.com/badlogic/pi-mono) coding agent instead of Claude Code.
+
+1. Follow the base [Setup](#setup) (enable PR creation for Actions, optional `PUSH_TOKEN`).
+2. Set the repository variable **`AGENT_CLI`** to `pi` under **Settings → Secrets and variables → Actions → Variables**.
+3. Add credentials for your provider as secrets (`ANTHROPIC_API_KEY` or `OPENAI_API_KEY`).
+4. Optionally add the secret **`AGENT_MODEL`** (e.g. `anthropic/claude-sonnet-4-5`). If unset, Pi uses its default model for the credentials it finds.
+
+The workflow installs `@mariozechner/pi-coding-agent` from npm and runs `pi -p "<prompt>"`. Pi has no permission system, so access is limited through its tool list:
+
+- Implement and fix steps: `read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`.
+- Review, summary, and eval steps: read-only tools (`read`, `grep`, `find`, `ls`); no shell.
+
+Notes:
+
+- The max-turns limit used with Claude Code is not applied; the job's 60-minute timeout still bounds a run.
+- Bash commands in edit steps are not restricted to an allowlist.
+- Edit `.github/workflows/issue-to-pr.yml` (the `agent-retry` wrapper) to change flags or tools.
 
 ## Optional: GitHub token
 
@@ -269,7 +289,7 @@ Guidelines:
 - **Ticket to PR**: opens a PR from any issue created by an owner, member, or collaborator.
 - **Review loop**: two review/fix rounds, confirming each finding was addressed.
 - **Eval-gated auto-merge**: an eval plus deterministic guards decide whether to squash-merge or hand off to a human.
-- **Multiple agents**: Claude Code by default; OpenCode or Codex optional.
+- **Multiple agents**: Claude Code by default; OpenCode, Codex, or Pi optional.
 - **Anthropic API or Amazon Bedrock**: choose your provider.
 - **PR comment chat**: ask questions or request changes on a PR.
 - **Jira and Trello import**: tickets and cards become issues automatically.
