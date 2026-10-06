@@ -38,12 +38,15 @@ Images attached to the issue are downloaded so Claude can view them.
 Install the [GitHub CLI](https://cli.github.com/) and run `gh auth login` once.
 
 ```sh
-gh issue create -t "Add dark mode toggle" -b "Add a toggle to the settings page."  # starts the pipeline
+gh issue create --title "Add dark mode toggle" --body "Add a toggle to the settings page."  # starts the pipeline
+gh issue create --title "Try a change" --body "..." --label dry-run  # run the pipeline without merging
 gh issue list                       # open issues
-gh issue view 123 -c                # read an issue with comments
-gh issue comment 123 -b "Also handle the empty state."
+gh issue view 123 --comments        # read an issue with comments
+gh issue comment 123 --body "Also handle the empty state."
 gh issue close 123
 gh pr list                          # PRs opened by the pipeline
+gh pr view 456 --comments           # read a PR and its comments
+gh pr comment 456 --body "Please also add a test."  # chat with the agent on a PR
 gh run watch                        # follow the pipeline live
 ```
 
