@@ -33,6 +33,31 @@ To add or change evals, see [Evals](#evals).
 
 Images attached to the issue are downloaded so Claude can view them.
 
+## Managing issues with the `gh` CLI
+
+Install the [GitHub CLI](https://cli.github.com/) and run `gh auth login` once.
+
+```sh
+gh issue create -t "Add dark mode toggle" -b "Add a toggle to the settings page."  # starts the pipeline
+gh issue list                       # open issues
+gh issue view 123 -c                # read an issue with comments
+gh issue comment 123 -b "Also handle the empty state."
+gh issue close 123
+gh pr list                          # PRs opened by the pipeline
+gh run watch                        # follow the pipeline live
+```
+
+To attach an image, `gh` can't upload files, so commit it with `gh api` and link it:
+
+```sh
+gh api -X PUT repos/{owner}/{repo}/contents/issue-assets/shot.png \
+  -f message="Add shot.png" -f content="$(base64 < shot.png | tr -d '\n')"
+gh issue create -t "Button is misaligned" \
+  -b "![shot](https://github.com/{owner}/{repo}/blob/HEAD/issue-assets/shot.png?raw=true)"
+```
+
+Replace `{owner}/{repo}` in the issue body with your repo (`gh api` fills it in on its own). You can also drag an image into the issue on github.com.
+
 ## PR comment chat
 
 `.github/workflows/pr-comment-chat.yml` lets you talk to the agent on a PR. When an owner, member, or collaborator comments on an open PR (a regular comment or an inline review comment), the agent evaluates it:
