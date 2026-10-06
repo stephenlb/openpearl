@@ -185,6 +185,26 @@ Good to know:
 - Built-in `GITHUB_TOKEN` events don't trigger workflows, which is why `PUSH_TOKEN` is required here.
 - If no transition matches `JIRA_IN_PROGRESS_STATUS`, the ticket stays in "To Do" and a warning is logged. It won't be imported twice (issues carry a hidden `jira-key` marker).
 
+### Adding tickets from the CLI
+
+Create a ticket with `curl` using the same credentials as the workflow (the ticket must be in "To Do" to be imported):
+
+```sh
+export JIRA_BASE_URL=https://your-site.atlassian.net JIRA_EMAIL=you@example.com JIRA_API_TOKEN=...
+
+curl -s -u "$JIRA_EMAIL:$JIRA_API_TOKEN" -X POST "$JIRA_BASE_URL/rest/api/3/issue" \
+  -H "Content-Type: application/json" \
+  -d '{"fields": {
+        "project": {"key": "BLOCKS"},
+        "issuetype": {"name": "Task"},
+        "summary": "Add dark mode toggle",
+        "description": {"type": "doc", "version": 1, "content": [
+          {"type": "paragraph", "content": [{"type": "text", "text": "Add a toggle to the settings page."}]}]}
+      }}'   # returns the new ticket key, e.g. BLOCKS-476
+```
+
+Or use [jira-cli](https://github.com/ankitpokhrel/jira-cli): `jira issue create -p BLOCKS -t Task -s "Add dark mode toggle" -b "Add a toggle to the settings page."`.
+
 ## Optional: Trello
 
 `.github/workflows/trello-to-issue.yml` works like the Jira import. It polls a Trello list and, for each card, it:
@@ -204,6 +224,21 @@ To set up, get a Trello [API key and token](https://trello.com/power-ups/admin) 
 | `PUSH_TOKEN` | Secret | Yes | See [GitHub token](#optional-github-token). |
 
 Polling is disabled by default (the workflow only runs on manual dispatch). To enable it, uncomment the `schedule` lines at the top of `trello-to-issue.yml` and commit to `main`. Issues carry a hidden `trello-key` marker, so a card is never imported twice. Comments are not synced back to Trello.
+
+### Adding cards from the CLI
+
+Create a card in the "To Do" list with `curl` using the same credentials as the workflow:
+
+```sh
+export TRELLO_API_KEY=... TRELLO_TOKEN=... TRELLO_TODO_LIST_ID=...
+
+curl -s -X POST "https://api.trello.com/1/cards" \
+  --data-urlencode "idList=$TRELLO_TODO_LIST_ID" \
+  --data-urlencode "name=Add dark mode toggle" \
+  --data-urlencode "desc=Add a toggle to the settings page." \
+  --data-urlencode "key=$TRELLO_API_KEY" \
+  --data-urlencode "token=$TRELLO_TOKEN"   # returns the new card, including its shortLink
+```
 
 ## Evals
 
