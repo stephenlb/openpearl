@@ -8,9 +8,6 @@ on:
 permissions:
   actions: write
 
-env:
-  MAX_ATTEMPTS: 3
-
 jobs:
   retry:
     # Only failed runs that still have attempts left
