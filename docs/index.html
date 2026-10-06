@@ -14,7 +14,7 @@
     <h4>Around town</h4>
     <a class="link active" href="./">Home base</a>
     <a class="link" href="https://github.com/stephenlb/openpearl">GitHub</a>
-    <a class="link" href="https://github.com/stephenlb/openpearl#setup">Setup</a>
+    <a class="link" href="#install">Setup</a>
     <a class="link" href="https://github.com/stephenlb/openpearl/issues">Issues</a>
     <a class="link" href="https://discord.gg/mygDNrQ7DJ">Discord</a>
   </nav>
@@ -50,7 +50,7 @@ gh run watch</code></pre>
   -f message="Add shot.png" -f content="$(base64 &lt; shot.png | tr -d '\n')"
 gh issue create -t "Button is misaligned" \
   -b "![shot](https://github.com/{owner}/{repo}/blob/HEAD/issue-assets/shot.png?raw=true)"</code></pre>
-    <h2>Move the robot in</h2>
+    <h2 id="install">Move the robot in</h2>
     <p>Paste this prompt into your coding agent (Claude Code, Codex, OpenCode, Pi) from the root of your project. It installs the OpenPearl workflow files.</p>
     <pre id="install-prompt"><code>Install OpenPearl into this project.
 
