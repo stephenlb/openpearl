@@ -334,6 +334,7 @@ jobs:
 
       - name: Resolve merge conflicts
         if: steps.commit.outputs.changed == 'true'
+        id: merge
         env:
           PR_NUMBER: ${{ steps.pr.outputs.number }}
         run: |
@@ -349,8 +350,14 @@ jobs:
             echo "Merge failed without conflicts"; git merge --abort || true; exit 1
           fi
           gh issue comment "$ISSUE_NUMBER" --body "Merge conflicts with \`$BASE\` detected; resolving..."
-          agent-retry edit "$GUIDANCE The branch has merge conflicts with origin/$BASE after running 'git merge origin/$BASE'. The conflicted files are listed in $RUNNER_TEMP/conflicts.txt. Resolve every conflict marker (<<<<<<<, =======, >>>>>>>) by editing those files so that both the intent of this branch and the changes from the base branch are preserved. Do not run git commit, git merge or git push." 40
-          if grep -lE '^(<<<<<<<|>>>>>>>)' $(cat "$RUNNER_TEMP/conflicts.txt") 2>/dev/null; then
+          agent-retry edit "$GUIDANCE The branch has merge conflicts with origin/$BASE after running 'git merge origin/$BASE'. The conflicted files are listed in $RUNNER_TEMP/conflicts.txt. Resolve every conflict marker (<<<<<<<, =======, >>>>>>>) by editing those files so that both the intent of this branch and the changes from the base branch are preserved. Do not run git commit, git merge or git push." 40 || true
+          # Agent errors are tolerated; the marker check decides. Files deleted on one side are skipped
+          unresolved=false
+          while IFS= read -r f; do
+            if [ -f "$f" ] && grep -qE '^(<<<<<<<|>>>>>>>)' "$f"; then unresolved=true; fi
+          done < "$RUNNER_TEMP/conflicts.txt"
+          if [ "$unresolved" = "true" ]; then
+            echo "unresolved=true" >> "$GITHUB_OUTPUT"
             git merge --abort || true
             gh pr comment "$PR_NUMBER" --body "Could not automatically resolve merge conflicts with \`$BASE\`; manual resolution required.
 
@@ -414,6 +421,7 @@ jobs:
           PR_URL: ${{ steps.pr.outputs.url }}
           PR_NUMBER: ${{ steps.pr.outputs.number }}
           TEST_STATUS: ${{ steps.tests.outputs.status }}
+          MERGE_UNRESOLVED: ${{ steps.merge.outputs.unresolved }}
         run: |
           gh issue comment "$ISSUE_NUMBER" --body "Running final eval to decide whether PR $PR_URL is safe to auto-merge..."
           printf '# %s\n\n%s\n' "$ISSUE_TITLE" "$ISSUE_BODY" > "$RUNNER_TEMP/issue.md"
@@ -445,6 +453,8 @@ jobs:
           verdict=NO
           if [ "$DRY_RUN" = "true" ]; then
             echo "Auto-merge skipped: dry-run label is set" > "$RUNNER_TEMP/eval.md"
+          elif [ "$MERGE_UNRESOLVED" = "true" ]; then
+            echo "Auto-merge blocked: unresolved merge conflicts with $BASE" > "$RUNNER_TEMP/eval.md"
           elif [ "$AUTO_MERGE" = "1" ]; then
             echo "Auto-merge forced: AUTO_MERGE=1 (eval and guards skipped)" > "$RUNNER_TEMP/eval.md"
             verdict=YES
