@@ -143,9 +143,13 @@ jobs:
                 # Pi has no permission prompts: review mode gets read-only tools (no shell)
                 local tools=read,grep,find,ls
                 [ "$mode" = edit ] && tools=read,bash,edit,write,grep,find,ls
+                # no shell in review mode, so append the branch diff to the prompt
+                if [ "$mode" != edit ] && [ -n "$BASE" ]; then
+                  prompt+=$'\n\nOutput of git diff origin/'"$BASE"$'...HEAD:\n'"$(git diff "origin/$BASE...HEAD" 2>&1)"
+                fi
                 args=(-p --tools "$tools")
                 [ -n "$AGENT_MODEL" ] && args+=(--model "$AGENT_MODEL")
-                pi "${args[@]}" "$prompt"
+                pi"${args[@]}" "$prompt"
                 ;;
             esac
           }
