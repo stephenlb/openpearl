@@ -38,6 +38,7 @@ Images attached to the issue are downloaded so Claude can view them.
 Install the [GitHub CLI](https://cli.github.com/) and run `gh auth login` once.
 
 ```sh
+gh issue create                     # interactive: prompts for title and body
 gh issue create -t "Add dark mode toggle" -b "Add a toggle to the settings page."  # starts the pipeline
 gh issue list                       # open issues
 gh issue view 123 -c                # read an issue with comments
