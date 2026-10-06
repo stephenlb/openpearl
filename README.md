@@ -9,15 +9,19 @@
 
 # OpenPearl
 
-_For simple quick tasks, an AI workflow can handle it._
+_Ticket in, merged PR out. A tiny robot night shift for your GitHub repo._
 
-From ticket to auto-merge. Minimal GitHub workflow. OpenPearl reads a ticket, implements it, opens a PR, reviews it in a loop and auto-merges. If it isn't confident, it hands the PR to a human.
+The small stuff? Let the little robot handle it while you get a drink from the vending machine.
 
-## Why not markdown files?
+**OPEN 24/7 · NO SLEEP · TINY WORKFLOW · AUTO-MERGE**
+
+OpenPearl reads a ticket, implements it, opens a PR, reviews it in a loop and auto-merges. All as a GitHub workflow. If it isn't confident, it waves politely and hands the PR to a human.
+
+## Why not a pile of markdown files?
 
 Instead of piling instructions into markdown files (`CLAUDE.md`, `AGENTS.md`, rules and memory docs) that get loaded into the agent's context on every run, OpenPearl uses workflow orchestration and evals. The workflow drives each step (implement, review, fix, merge) as a separate, focused agent call, and evals decide whether a PR is ready to merge. Context isn't consumed by standing instructions, so the agent keeps its context for the actual task.
 
-## How it works
+## How the night shift works
 
 When an owner, member, or collaborator opens an issue, `.github/workflows/issue-to-pr.yml` runs:
 
@@ -33,7 +37,7 @@ To add or change evals, see [Evals](#evals).
 
 Images attached to the issue are downloaded so Claude can view them.
 
-## Managing issues with the `gh` CLI
+## Drop tickets in the slot (`gh`)
 
 Install the [GitHub CLI](https://cli.github.com/) and run `gh auth login` once.
 
@@ -321,7 +325,7 @@ Guidelines:
 - Changes under `.github/` are never auto-merged, so a human reviews the PR that adds the eval.
 - `GITHUB_TOKEN` can't push to `.github/workflows/`. Set up `PUSH_TOKEN` (see [GitHub token](#optional-github-token)) if you want the pipeline to make this change itself.
 - Try the eval on a test issue and read the PR comment to check that the verdict and reasoning make sense. Also try a case that should fail.
-- Mention the new eval in [How it works](#how-it-works).
+- Mention the new eval in [How the night shift works](#how-the-night-shift-works).
 
 ## Features
 
