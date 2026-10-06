@@ -419,16 +419,12 @@ jobs:
         if: steps.commit.outputs.changed == 'true'
         id: eval
         env:
-          ISSUE_TITLE: ${{ github.event.issue.title }}
-          ISSUE_BODY: ${{ github.event.issue.body }}
           PR_URL: ${{ steps.pr.outputs.url }}
           PR_NUMBER: ${{ steps.pr.outputs.number }}
           TEST_STATUS: ${{ steps.tests.outputs.status }}
           MERGE_UNRESOLVED: ${{ steps.merge.outputs.unresolved }}
         run: |
           gh issue comment "$ISSUE_NUMBER" --body "Running final eval to decide whether PR $PR_URL is safe to auto-merge..."
-          printf '# %s\n\n%s\n' "$ISSUE_TITLE" "$ISSUE_BODY" > "$RUNNER_TEMP/issue.md"
-
           # Evidence for the eval: diff stats and real test results
           git diff --stat "origin/$BASE...HEAD" > "$RUNNER_TEMP/diffstat.md"
 
@@ -473,7 +469,7 @@ jobs:
           $(cat .github/evals-extra.md 2>/dev/null)
 
           Base branch: origin/$BASE
-          Issue file: $RUNNER_TEMP/issue.md
+          Issue file: $RUNNER_TEMP/task.md
           Review files: $RUNNER_TEMP/review-*.md (review-final.md is the review of the fixed code and takes precedence)
           Test results file: $RUNNER_TEMP/tests.md (test status: $TEST_STATUS)
           Diff stats file: $RUNNER_TEMP/diffstat.md" 20 > "$RUNNER_TEMP/eval.md"; then
