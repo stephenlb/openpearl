@@ -354,7 +354,7 @@ jobs:
           # Agent errors are tolerated; the marker check decides. Files deleted on one side are skipped
           unresolved=false
           while IFS= read -r f; do
-            if [ -f "$f" ] && grep -qE '^(<<<<<<<|>>>>>>>)' "$f"; then unresolved=true; fi
+            if [ -f "$f" ] && grep -qE '^(<<<<<<<|=======$|>>>>>>>)' "$f"; then unresolved=true; fi
           done < "$RUNNER_TEMP/conflicts.txt"
           if [ "$unresolved" = "true" ]; then
             echo "unresolved=true" >> "$GITHUB_OUTPUT"
@@ -365,7 +365,10 @@ jobs:
             gh issue comment "$ISSUE_NUMBER" --body "Could not automatically resolve merge conflicts with \`$BASE\`. Manual resolution required."
             exit 0
           fi
-          git add -A
+          # Stage only the conflicted paths; the rest of the merge is already staged
+          while IFS= read -r f; do
+            if [ -e "$f" ]; then git add -- "$f"; else git rm -q --cached -- "$f" || true; fi
+          done < "$RUNNER_TEMP/conflicts.txt"
           git commit -m "Merge $BASE and resolve conflicts"
           git push
           gh pr comment "$PR_NUMBER" --body "Resolved merge conflicts with \`$BASE\`:
