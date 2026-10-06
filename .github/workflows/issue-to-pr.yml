@@ -332,6 +332,42 @@ jobs:
           EOF
           done
 
+      - name: Resolve merge conflicts
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          # The base branch may have moved while the agent worked; merge it in and let the agent fix conflicts
+          git fetch origin "$BASE"
+          if git merge --no-edit "origin/$BASE"; then
+            if [ "$(git rev-parse HEAD)" != "$(git rev-parse "origin/$BRANCH")" ]; then git push; fi
+            echo "No merge conflicts with $BASE."
+            exit 0
+          fi
+          git diff --name-only --diff-filter=U > "$RUNNER_TEMP/conflicts.txt"
+          if [ ! -s "$RUNNER_TEMP/conflicts.txt" ]; then
+            echo "Merge failed without conflicts"; git merge --abort || true; exit 1
+          fi
+          gh issue comment "$ISSUE_NUMBER" --body "Merge conflicts with \`$BASE\` detected; resolving..."
+          agent-retry edit "$GUIDANCE The branch has merge conflicts with origin/$BASE after running 'git merge origin/$BASE'. The conflicted files are listed in $RUNNER_TEMP/conflicts.txt. Resolve every conflict marker (<<<<<<<, =======, >>>>>>>) by editing those files so that both the intent of this branch and the changes from the base branch are preserved. Do not run git commit, git merge or git push." 40
+          if grep -lE '^(<<<<<<<|>>>>>>>)' $(cat "$RUNNER_TEMP/conflicts.txt") 2>/dev/null; then
+            git merge --abort || true
+            gh pr comment "$PR_NUMBER" --body "Could not automatically resolve merge conflicts with \`$BASE\`; manual resolution required.
+
+          $MARKER"
+            gh issue comment "$ISSUE_NUMBER" --body "Could not automatically resolve merge conflicts with \`$BASE\`. Manual resolution required."
+            exit 0
+          fi
+          git add -A
+          git commit -m "Merge $BASE and resolve conflicts"
+          git push
+          gh pr comment "$PR_NUMBER" --body "Resolved merge conflicts with \`$BASE\`:
+
+          $(sed 's/^/- /' "$RUNNER_TEMP/conflicts.txt")
+
+          $MARKER"
+          gh issue comment "$ISSUE_NUMBER" --body "Merge conflicts with \`$BASE\` resolved and pushed."
+
       - name: Summarize completed work
         if: steps.commit.outputs.changed == 'true'
         run: |
