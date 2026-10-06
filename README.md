@@ -29,7 +29,7 @@ When an owner, member, or collaborator opens an issue, `.github/workflows/issue-
 
 Set the `AUTO_MERGE` repo variable to `1` to always merge: the eval and all its guards (protected paths, diff size, project tests) are skipped, so even changes to workflows or auth files merge without review, and the PR is squash-merged once required checks pass. The `dry-run` label still prevents merging.
 
-To add or change evals, see [EVALS.md](EVALS.md).
+To add or change evals, see [Evals](#evals).
 
 Images attached to the issue are downloaded so Claude can view them.
 
@@ -70,7 +70,53 @@ All values above are stored as secrets.
 
 ## Optional: OpenCode or Codex
 
-Claude Code is the default agent. To use another CLI, set the `AGENT_CLI` repository variable to `opencode` or `codex` and follow [OPENCODE.md](OPENCODE.md) or [CODEX.md](CODEX.md).
+Claude Code is the default agent. To use another CLI, set the `AGENT_CLI` repository variable to `opencode` or `codex` and follow the matching section below. To go back to Claude Code, delete the `AGENT_CLI` variable or set it to `claude`.
+
+### Using OpenCode
+
+Run the OpenPearl workflow with the [OpenCode](https://opencode.ai) CLI instead of Claude Code.
+
+1. Follow the base [Setup](#setup) (enable PR creation for Actions, optional `PUSH_TOKEN`).
+2. Set the repository variable **`AGENT_CLI`** to `opencode` under **Settings → Secrets and variables → Actions → Variables**.
+3. Add credentials for the provider of the model you want, as secrets:
+
+   | Provider | Secret |
+   | --- | --- |
+   | Anthropic | `ANTHROPIC_API_KEY` |
+   | OpenAI | `OPENAI_API_KEY` |
+   | Amazon Bedrock | `AWS_BEARER_TOKEN_BEDROCK`, `AWS_REGION` |
+
+4. Add the secret **`AGENT_MODEL`** in OpenCode's `provider/model` format, e.g. `anthropic/claude-sonnet-4-5` or `openai/gpt-5`. If unset, OpenCode uses its default model for the credentials it finds.
+
+The workflow installs `opencode-ai` from npm and runs `opencode run "<prompt>"`. Permissions are passed through the `OPENCODE_PERMISSION` environment variable:
+
+- Implement and fix steps: edits and shell commands allowed, web fetch denied.
+- Review, summary, and eval steps: edits denied; only `git diff`, `git log`, and `git status` are allowed.
+
+Notes:
+
+- The max-turns limit used with Claude Code is not applied; the job's 60-minute timeout still bounds a run.
+- Edit `.github/workflows/issue-to-pr.yml` (the `agent-retry` wrapper) to change flags or permissions.
+
+### Using Codex
+
+Run the OpenPearl workflow with the [OpenAI Codex CLI](https://github.com/openai/codex) instead of Claude Code.
+
+1. Follow the base [Setup](#setup) (enable PR creation for Actions, optional `PUSH_TOKEN`).
+2. Set the repository variable **`AGENT_CLI`** to `codex` under **Settings → Secrets and variables → Actions → Variables**.
+3. Add the secret **`OPENAI_API_KEY`** with your OpenAI API key.
+4. Optionally add the secret **`AGENT_MODEL`** (e.g. `gpt-6.1-sol`). If unset, Codex uses its default model.
+
+The workflow installs `@openai/codex` from npm and runs `codex exec`, capturing the final message with `--output-last-message`. Permissions map to Codex sandbox modes:
+
+- Implement and fix steps: `--sandbox workspace-write` (edits inside the checkout; network access is off by default, so commands like `npm install` may fail).
+- Review, summary, and eval steps: `--sandbox read-only`.
+
+Notes:
+
+- The max-turns limit used with Claude Code is not applied; the job's 60-minute timeout still bounds a run.
+- Codex reads an `AGENTS.md` in the repository root for conventions, if one exists.
+- Edit `.github/workflows/issue-to-pr.yml` (the `agent-retry` wrapper) to change flags or sandbox modes.
 
 ## Optional: GitHub token
 
@@ -130,6 +176,65 @@ To set up, get a Trello [API key and token](https://trello.com/power-ups/admin) 
 | `PUSH_TOKEN` | Secret | Yes | See [GitHub token](#optional-github-token). |
 
 Polling is disabled by default (the workflow only runs on manual dispatch). To enable it, uncomment the `schedule` lines at the top of `trello-to-issue.yml` and commit to `main`. Issues carry a hidden `trello-key` marker, so a card is never imported twice. Comments are not synced back to Trello.
+
+## Evals
+
+An eval is a prompt file in `.github/workflows/evals/` that Claude runs inside `.github/workflows/issue-to-pr.yml` to make a decision. The only eval today is `pr-ready-to-merge.md`, which gates auto-merge. This section explains how to add another.
+
+### How the existing eval works
+
+The step **Eval - PR ready to auto-merge** in `issue-to-pr.yml`:
+
+1. Writes the issue to `$RUNNER_TEMP/issue.md` and runs a final code review into `$RUNNER_TEMP/review-final.md`. Project test results (`tests.md`) and diff stats (`diffstat.md`) are also written there as evidence.
+2. Applies deterministic guards first. The dry-run label always wins; otherwise the `AUTO_MERGE=1` repo variable forces a merge and bypasses every other guard and the eval (including the protected-paths, size and test-status checks). Without it, the guards are (dry-run label, diff touches sensitive paths such as `.github/`, auth/secrets or dependency manifests, diff larger than `MAX_DIFF_FILES`/`MAX_DIFF_LINES`, failing tests, final review not clean). If one fails, the verdict is `NO` and Claude is not called. Optional extra criteria in `.github/evals-extra.md` are appended to the eval prompt.
+3. Otherwise runs `claude -p` with the eval file's contents plus the paths of the input files.
+4. Reads the last non-empty line of the output. Only exactly `YES` passes; anything else, including a failed command, counts as `NO` (fail closed).
+5. Posts the output as a PR comment and acts on the verdict.
+
+### Adding a new eval
+
+**1. Write the eval prompt.** Create `.github/workflows/evals/<name>.md`, named after the question it answers (for example `pr-has-adequate-tests.md`). Follow the structure of `pr-ready-to-merge.md`:
+
+- A title that states the question.
+- The inputs the eval receives (files, `git diff`, and so on).
+- Explicit, numbered criteria for a passing answer.
+- A default of `NO` when anything is uncertain.
+- An exact output format: a short justification, then a final line that is exactly `YES` or `NO`.
+
+Keep criteria objective and checkable. Vague criteria give inconsistent verdicts.
+
+**2. Run it from the workflow.** In `issue-to-pr.yml`, add a step (or extend the eval step) that passes the file to Claude along with the inputs it needs:
+
+```bash
+verdict=NO
+if claude -p "$(cat .github/workflows/evals/<name>.md)
+
+Base branch: origin/$BASE
+Issue file: $RUNNER_TEMP/issue.md" \
+  --allowedTools "$TOOLS_REVIEW,Read($RUNNER_TEMP/**)" \
+  --max-turns 20 > "$RUNNER_TEMP/<name>.md"; then
+  last=$(grep -v '^[[:space:]]*$' "$RUNNER_TEMP/<name>.md" | tail -n 1 | tr -d '[:space:]')
+  [ "$last" = "YES" ] && verdict=YES
+else
+  echo "Eval command failed" > "$RUNNER_TEMP/<name>.md"
+fi
+```
+
+Guidelines:
+
+- Fail closed. Default the verdict to `NO` and set `YES` only on an exact match of the final line.
+- Give Claude read-only tools (`$TOOLS_REVIEW`, plus `Read` on `$RUNNER_TEMP`) and a `--max-turns` limit.
+- Put checks that can be done with plain shell (path filters, file counts) before the Claude call, as the existing step does. They are cheaper and can't be talked around.
+- Post the eval output as a PR comment so reviewers can see the reasoning.
+
+**3. Use the verdict.** Decide what the verdict controls. To make a new eval a merge requirement, combine it with the existing verdict so that both must be `YES` before `gh pr merge` runs. To make it informational, only post the comment.
+
+**4. Test and document.**
+
+- Changes under `.github/` are never auto-merged, so a human reviews the PR that adds the eval.
+- `GITHUB_TOKEN` can't push to `.github/workflows/`. Set up `PUSH_TOKEN` (see [GitHub token](#optional-github-token)) if you want the pipeline to make this change itself.
+- Try the eval on a test issue and read the PR comment to check that the verdict and reasoning make sense. Also try a case that should fail.
+- Mention the new eval in [How it works](#how-it-works).
 
 ## License
 
