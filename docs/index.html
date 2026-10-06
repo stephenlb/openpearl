@@ -48,7 +48,7 @@ gh run watch</code></pre>
 gh issue create -t "Button is misaligned" \
   -b "![shot](https://github.com/{owner}/{repo}/blob/HEAD/issue-assets/shot.png?raw=true)"</code></pre>
     <h2>Install</h2>
-    <p>Paste this prompt into your coding agent (Claude Code, Codex, OpenCode) from the root of your project. It installs the OpenPearl workflow files.</p>
+    <p>Paste this prompt into your coding agent (Claude Code, Codex, OpenCode, Pi) from the root of your project. It installs the OpenPearl workflow files.</p>
     <pre id="install-prompt"><code>Install OpenPearl into this project.
 
 1. Download the .github/workflows directory from https://github.com/stephenlb/openpearl (branch main) into this project's .github/workflows directory: issue-to-pr.yml and the evals/ folder (evals/pr-ready-to-merge.md). Only also copy jira-to-issue.yml, issue-comment-to-jira.yml and trello-to-issue.yml if I use Jira or Trello. For example: git clone --depth 1 https://github.com/stephenlb/openpearl /tmp/openpearl, then copy the files. Do not overwrite existing files without asking me.
@@ -63,7 +63,7 @@ gh issue create -t "Button is misaligned" \
       <li><strong>Ticket to PR</strong>: opens a PR from any issue created by an owner, member, or collaborator.</li>
       <li><strong>Review loop</strong>: two review/fix rounds, confirming each finding was addressed.</li>
       <li><strong>Eval-gated auto-merge</strong>: an eval plus deterministic guards decide whether to squash-merge or hand off to a human.</li>
-      <li><strong>Multiple agents</strong>: Claude Code by default; OpenCode or Codex optional.</li>
+      <li><strong>Multiple agents</strong>: Claude Code by default; OpenCode, Codex, or Pi optional.</li>
       <li><strong>Anthropic API or Amazon Bedrock</strong>: choose your provider.</li>
       <li><strong>PR comment chat</strong>: ask questions or request changes on a PR.</li>
       <li><strong>Jira and Trello import</strong>: tickets and cards become issues automatically.</li>

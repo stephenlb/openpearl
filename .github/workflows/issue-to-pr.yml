@@ -28,11 +28,11 @@ env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
   ANTHROPIC_SMALL_FAST_MODEL: ${{ secrets.ANTHROPIC_SMALL_FAST_MODEL }}
-  # Agent CLI: claude (default), opencode, or codex. Set the AGENT_CLI repo variable to switch.
+  # Agent CLI: claude (default), opencode, codex, or pi. Set the AGENT_CLI repo variable to switch.
   AGENT_CLI: ${{ vars.AGENT_CLI || 'claude' }}
   # OpenAI auth for codex (and opencode with an OpenAI model)
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-  # Optional model for opencode ("provider/model") or codex; claude uses ANTHROPIC_MODEL
+  # Optional model for opencode/pi ("provider/model") or codex; claude uses ANTHROPIC_MODEL
   AGENT_MODEL: ${{ secrets.AGENT_MODEL }}
   # Repo variables (Settings > Variables) tune the workflow; defaults apply when unset
   REVIEW_ROUNDS: ${{ vars.REVIEW_ROUNDS || '2' }}
@@ -78,7 +78,8 @@ jobs:
             claude) npm install -g @anthropic-ai/claude-code ;;
             opencode) npm install -g opencode-ai ;;
             codex) npm install -g @openai/codex ;;
-            *) echo "Unsupported AGENT_CLI '$AGENT_CLI' (use claude, opencode, or codex)"; exit 1 ;;
+            pi) npm install -g @mariozechner/pi-coding-agent ;;
+            *) echo "Unsupported AGENT_CLI '$AGENT_CLI' (use claude, opencode, codex, or pi)"; exit 1 ;;
           esac
 
       - name: Install image tools
@@ -137,6 +138,14 @@ jobs:
                 [ "$rc" -eq 0 ] && cat "$last"
                 rm -f "$last"
                 return $rc
+                ;;
+              pi)
+                # Pi has no permission prompts: review mode gets read-only tools (no shell)
+                local tools=read,grep,find,ls
+                [ "$mode" = edit ] && tools=read,bash,edit,write,grep,find,ls
+                args=(-p --tools "$tools")
+                [ -n "$AGENT_MODEL" ] && args+=(--model "$AGENT_MODEL")
+                pi "${args[@]}" "$prompt"
                 ;;
             esac
           }
