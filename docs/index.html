@@ -35,7 +35,8 @@
     </ol>
     <h2>Managing issues with gh</h2>
     <p>Install the <a href="https://cli.github.com/">GitHub CLI</a> and run <code>gh auth login</code> once.</p>
-    <pre><code>gh issue create -t "Add dark mode toggle" -b "Add a toggle to the settings page."
+    <pre><code>gh issue create   # interactive: prompts for title and body
+gh issue create -t "Add dark mode toggle" -b "Add a toggle to the settings page."
 gh issue list
 gh issue view 123 -c
 gh issue comment 123 -b "Also handle the empty state."
