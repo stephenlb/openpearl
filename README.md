@@ -69,12 +69,13 @@ gh issue create -t "Button is misaligned" \
 
 Replace `{owner}/{repo}` in the issue body with your repo (`gh api` fills it in on its own). You can also drag an image into the issue on github.com.
 
-## PR comment chat
+## Comment chat
 
-`.github/workflows/pr-comment-chat.yml` lets you talk to the agent on a PR. When an owner, member, or collaborator comments on an open PR (a regular comment or an inline review comment), the agent evaluates it:
+`.github/workflows/pr-comment-chat.yml` lets you keep talking to the agent after an issue or PR is created. When an owner, member, or collaborator comments on an issue, or on an open PR (a regular comment or an inline review comment), the agent evaluates it:
 
 - Questions and discussion get a reply comment.
 - Change requests are implemented, committed and pushed to the PR branch, and the reply says what changed.
+- On an issue, changes go to the open PR for that issue (the one with `Closes #N`); if there is none, a new branch and PR are opened.
 
 PRs from forks are ignored, as are bot comments and the pipeline's own comments (they carry a hidden `<!-- openpearl -->` marker). The reply is posted with `PUSH_TOKEN` if set, so set it if you want replies to be attributed to that account. Pushes made with the built-in `GITHUB_TOKEN` don't trigger CI.
 
