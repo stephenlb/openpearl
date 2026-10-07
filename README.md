@@ -4,12 +4,14 @@
 
 <p align="center">
   <a href="https://discord.gg/mygDNrQ7DJ"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join%20the%20chat-5865F2?logo=discord&logoColor=white" /></a>
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/openpearl/openpearl" /></a>
+  <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" /></a>
 </p>
 
 # OpenPearl
 
 _Ticket in, merged PR out. A tiny robot night shift for your GitHub repo._
+
+Open source under the [Apache License 2.0](LICENSE).
 
 The small stuff? Let the little robot handle it while you get a drink from the vending machine.
 
