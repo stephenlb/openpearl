@@ -12,7 +12,8 @@ permissions:
   issues: write
 
 concurrency:
-  group: issue-to-pr-${{ github.event.issue.number || github.event.pull_request.number }}
+  # Per-comment group: a shared per-thread group keeps only one pending run and would drop earlier comments
+  group: comment-chat-${{ github.event.comment.id }}
   cancel-in-progress: false
 
 env:
@@ -44,7 +45,9 @@ jobs:
     if: >-
       github.event.comment.user.type != 'Bot' &&
       !contains(github.event.comment.body, '<!-- openpearl -->') &&
-      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+      (github.event_name == 'pull_request_review_comment' || github.event.issue.pull_request ||
+       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -65,7 +68,7 @@ jobs:
             # Plain issue: continue on the open PR the pipeline opened for it ("Closes #N"), if any
             gh issue view "$THREAD_NUMBER" --json title,body > "$RUNNER_TEMP/issue.json"
             pr_number=$(gh pr list --state open --limit 1000 --json number,headRefName,isCrossRepository \
-              | jq -r --arg p "claude/issue-$THREAD_NUMBER-" '[.[] | select((.headRefName | startswith($p)) and (.isCrossRepository | not))] | first | .number // empty')
+              | jq -r --arg p "claude/issue-$THREAD_NUMBER-" '[.[] | select((.headRefName | startswith($p)) and (.headRefName | contains("-chat-") | not) and (.isCrossRepository | not))] | sort_by(.number) | last | .number // empty')
           fi
           if [ -n "$pr_number" ]; then
             gh pr view "$pr_number" --json state,headRefName,baseRefName,isCrossRepository,title,body > "$RUNNER_TEMP/pr.json"
