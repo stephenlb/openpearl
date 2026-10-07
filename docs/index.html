@@ -8,23 +8,28 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="layout">
+<header>
   <nav>
-    <a class="brand" href="./">OPEN<br>PEARL</a>
-    <h4>Around town</h4>
-    <a class="link active" href="./">Home base</a>
-    <a class="link" href="https://github.com/stephenlb/openpearl">GitHub</a>
-    <a class="link" href="#install">Setup</a>
-    <a class="link" href="https://github.com/stephenlb/openpearl/issues">Issues</a>
-    <a class="link" href="https://discord.gg/mygDNrQ7DJ">Discord</a>
+    <a class="brand" href="./"><img alt="" src="favicon.png">OpenPearl</a>
+    <div class="links">
+      <a class="link active" href="./">Home base</a>
+      <a class="link" href="https://github.com/stephenlb/openpearl">GitHub</a>
+      <a class="link" href="#install">Setup</a>
+      <a class="link" href="https://github.com/stephenlb/openpearl/issues">Issues</a>
+      <a class="link pill" href="https://discord.gg/mygDNrQ7DJ">Discord</a>
+      <a class="link pill primary" href="#install">Get started</a>
+    </div>
   </nav>
-  <main>
-    <img class="logo" alt="OpenPearl logo" src="openpearl.jpg">
-    <div class="bot" aria-hidden="true"></div>
-    <h1>OpenPearl</h1>
-    <p class="lead">Ticket in, merged PR out. A tiny robot night shift for your GitHub repo.</p>
+  <section class="hero">
+    <p class="eyebrow">Meet OpenPearl: a tiny robot night shift for your GitHub repo</p>
+    <h1>Ticket In, Merged PR Out, Seamlessly</h1>
     <p class="lead">The small stuff? Let the little robot handle it while you get a drink from the vending machine.</p>
-    <p><span class="tag">OPEN 24/7</span><span class="tag">NO SLEEP</span><span class="tag">TINY WORKFLOW</span><span class="tag">AUTO-MERGE</span></p>
+    <a class="cta" href="#install">Move the robot in</a>
+    <p class="tags"><span class="tag">OPEN 24/7</span><span class="tag">NO SLEEP</span><span class="tag">TINY WORKFLOW</span><span class="tag">AUTO-MERGE</span></p>
+  </section>
+</header>
+<main>
+    <img class="logo" alt="OpenPearl logo" src="openpearl.jpg">
     <p>OpenPearl is open source on <a href="https://github.com/stephenlb/openpearl">GitHub</a>. It reads a ticket, implements it, opens a PR, reviews it in a loop and auto-merges. All as a GitHub workflow. If it isn't confident, it waves politely and hands the PR to a human.</p>
     <h2>Why not a pile of markdown files?</h2>
     <p>Instead of piling instructions into markdown files (<code>CLAUDE.md</code>, <code>AGENTS.md</code>, rules and memory docs) that get loaded into the agent's context on every run, OpenPearl uses workflow orchestration and evals. The workflow drives each step (implement, review, fix, merge) as a separate, focused agent call, and evals decide whether a PR is ready to merge. Context isn't consumed by standing instructions, so the agent keeps its context for the actual task.</p>
@@ -61,8 +66,7 @@ gh issue create -t "Button is misaligned" \
    - Add the secret ANTHROPIC_API_KEY under Settings > Secrets and variables > Actions (or the Amazon Bedrock secrets listed in https://github.com/stephenlb/openpearl#setup).</code></pre>
     <button id="copy-prompt" type="button">Copy prompt</button>
     <p class="note">Lost in the neon? See the <a href="https://github.com/stephenlb/openpearl">README</a> for setup instructions.</p>
-  </main>
-</div>
+</main>
 <script>
 document.getElementById("copy-prompt").onclick=function(){
   var b=this;
