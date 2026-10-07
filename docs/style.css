@@ -30,6 +30,8 @@ h1{margin:0 0 24px;font-weight:400;font-size:clamp(2.4rem,6vw,4.2rem);line-heigh
 .cta{display:inline-block;padding:11px 26px;border-radius:999px;background:#000;color:#fff;font-weight:400;font-size:.95rem;text-decoration:none}
 .cta:hover{color:#fff;background:#222}
 .tags{margin:56px 0 0;display:flex;flex-wrap:wrap;gap:10px 28px;justify-content:center}
+.license{margin:20px 0 0;font-size:.95rem;color:rgba(47,47,51,.6)}
+.license a{color:inherit;text-decoration:underline}
 .tag{font-weight:600;font-size:1rem;letter-spacing:.04em;color:rgba(47,47,51,.6)}
 main{max-width:880px;margin:0 auto;padding:16px 32px 72px;position:relative;z-index:2}
 main section{padding:48px 0;border-top:1px solid var(--line)}
