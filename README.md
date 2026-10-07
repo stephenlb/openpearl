@@ -327,19 +327,6 @@ Guidelines:
 - Try the eval on a test issue and read the PR comment to check that the verdict and reasoning make sense. Also try a case that should fail.
 - Mention the new eval in [How the night shift works](#how-the-night-shift-works).
 
-## Features
-
-- **Ticket to PR**: opens a PR from any issue created by an owner, member, or collaborator.
-- **Review loop**: two review/fix rounds, confirming each finding was addressed.
-- **Eval-gated auto-merge**: an eval plus deterministic guards decide whether to squash-merge or hand off to a human.
-- **Multiple agents**: Claude Code by default; OpenCode, Codex, or Pi optional.
-- **Anthropic API or Amazon Bedrock**: choose your provider.
-- **PR comment chat**: ask questions or request changes on a PR.
-- **Jira and Trello import**: tickets and cards become issues automatically.
-- **Image support**: images attached to issues are downloaded so the agent can view them.
-- **Dry-run label and `AUTO_MERGE` override**: control whether PRs are merged.
-- **Custom evals**: add your own prompt-based checks.
-
 ## License
 
 Apache 2.0
