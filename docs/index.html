@@ -34,6 +34,18 @@
     <p>OpenPearl is open source on <a href="https://github.com/stephenlb/openpearl">GitHub</a>. It reads a ticket, implements it, opens a PR, reviews it in a loop and auto-merges. All as a GitHub workflow. If it isn't confident, it hands the PR to a human.</p>
   </section>
   <section>
+    <p class="eyebrow">The story</p>
+    <h2>A pipeline that maintains itself</h2>
+    <p>Software delivery pipelines can now be implemented and be self-maintained. We built OpenPearl with an initial prompt that generated a workflow intended to be self-modifiable. Once the boilerplate scaffolding was set, we began using the engine itself to modify and expand its capabilities. It took a few tries, with a few false starts where the engine couldn't modify itself successfully. We're only talking about YAML files because this is a GitHub workflow; there are no other files involved except for evals.</p>
+    <p>Once we got past the initial problems, we added features that let the workflow integrate seamlessly with Jira, Trello, and GitHub issues. We added image support so the models have vision. Then we added a continuous chat session in issues and pull requests. It became obvious that we needed an eval to decide when a human should verify and validate a pull request, and when the ticket can be auto-merged. The goal is for most tickets to merge automatically. For safety, any modification to the workflows typically triggers human review.</p>
+    <h3>The preferred workflow</h3>
+    <p>We also wanted a command-line interface, so you can submit new tickets directly from your terminal or have an AI agent trigger a series of new tickets that the OpenPearl pipeline implements automatically. This has become the preferred method: spin up your Codex or Claude Code instance and use the GitHub CLI (<code>gh</code>) to create new issues. Ask your coding assistant to create issues for complex tasks, and it may split the work across several tickets.</p>
+    <h3>How we started</h3>
+    <p>At PubNub and Blocks.AI, we wanted to innovate our engineering workflows. Early in 2024, we realized it might be possible to build a software delivery pipeline from Jira tickets to merged PRs. We tried and failed. Most models and harnesses were newly emerging, and even simple tickets needed a lot of back and forth between the harness and a human. Now the models and harnesses are good enough that the automation pipeline we tried to build in 2024 is readily available in 2026.</p>
+    <h3>The simple workflow loop</h3>
+    <p>This is what OpenPearl is: a simple YAML file that describes a workflow for GitHub Actions. It fetches tickets from Trello, Jira, and GitHub Issues, then opens a branch, modifies the code, pushes the branch to origin, and opens a PR. It evaluates the code review in a loop until it looks clean, and finally runs an eval to determine whether the PR can be merged automatically or needs a human. That is the simple loop.</p>
+  </section>
+  <section>
     <p class="eyebrow">Why workflows</p>
     <h2>Why not a pile of markdown files?</h2>
     <p>Instead of piling instructions into markdown files (<code>CLAUDE.md</code>, <code>AGENTS.md</code>, rules and memory docs) that get loaded into the agent's context on every run, OpenPearl uses workflow orchestration and evals. The workflow drives each step (implement, review, fix, merge) as a separate, focused agent call, and evals decide whether a PR is ready to merge. Context isn't consumed by standing instructions, so the agent keeps its context for the actual task.</p>
