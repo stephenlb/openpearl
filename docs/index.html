@@ -29,10 +29,16 @@
   </section>
 </header>
 <main>
-    <img class="logo" alt="OpenPearl logo" src="openpearl.jpg">
-    <p>OpenPearl is open source on <a href="https://github.com/stephenlb/openpearl">GitHub</a>. It reads a ticket, implements it, opens a PR, reviews it in a loop and auto-merges. All as a GitHub workflow. If it isn't confident, it waves politely and hands the PR to a human.</p>
+  <section class="intro">
+    <p>OpenPearl is open source on <a href="https://github.com/stephenlb/openpearl">GitHub</a>. It reads a ticket, implements it, opens a PR, reviews it in a loop and auto-merges. All as a GitHub workflow. If it isn't confident, it hands the PR to a human.</p>
+  </section>
+  <section>
+    <p class="eyebrow">Why workflows</p>
     <h2>Why not a pile of markdown files?</h2>
     <p>Instead of piling instructions into markdown files (<code>CLAUDE.md</code>, <code>AGENTS.md</code>, rules and memory docs) that get loaded into the agent's context on every run, OpenPearl uses workflow orchestration and evals. The workflow drives each step (implement, review, fix, merge) as a separate, focused agent call, and evals decide whether a PR is ready to merge. Context isn't consumed by standing instructions, so the agent keeps its context for the actual task.</p>
+  </section>
+  <section>
+    <p class="eyebrow">How it works</p>
     <h2>How the night shift works</h2>
     <p>When an owner, member, or collaborator opens an issue, <a href="https://github.com/stephenlb/openpearl/blob/main/.github/workflows/issue-to-pr.yml"><code>.github/workflows/issue-to-pr.yml</code></a> runs:</p>
     <ol>
@@ -40,6 +46,9 @@
       <li>The agent CLI runs two review/fix rounds.</li>
       <li>The agent CLI runs the eval in <a href="https://github.com/stephenlb/openpearl/blob/main/.github/workflows/evals/pr-ready-to-merge.md"><code>.github/workflows/evals/pr-ready-to-merge.md</code></a>. On <code>YES</code> the PR is squash-merged; otherwise it stays open for a human.</li>
     </ol>
+  </section>
+  <section>
+    <p class="eyebrow">Usage</p>
     <h2>Drop tickets in the slot (gh)</h2>
     <p>Install the <a href="https://cli.github.com/">GitHub CLI</a> and run <code>gh auth login</code> once.</p>
     <pre><code>gh issue create   # interactive: prompts for title and body
@@ -55,7 +64,10 @@ gh run watch</code></pre>
   -f message="Add shot.png" -f content="$(base64 &lt; shot.png | tr -d '\n')"
 gh issue create -t "Button is misaligned" \
   -b "![shot](https://github.com/{owner}/{repo}/blob/HEAD/issue-assets/shot.png?raw=true)"</code></pre>
-    <h2 id="install">Move the robot in</h2>
+  </section>
+  <section id="install">
+    <p class="eyebrow">Setup</p>
+    <h2>Move the robot in</h2>
     <p>Paste this prompt into your coding agent (Claude Code, Codex, OpenCode, Pi) from the root of your project. It installs the OpenPearl workflow files.</p>
     <pre id="install-prompt"><code>Install OpenPearl into this project.
 
@@ -65,7 +77,8 @@ gh issue create -t "Button is misaligned" \
    - Enable Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests".
    - Add the secret ANTHROPIC_API_KEY under Settings > Secrets and variables > Actions (or the Amazon Bedrock secrets listed in https://github.com/stephenlb/openpearl#setup).</code></pre>
     <button id="copy-prompt" type="button">Copy prompt</button>
-    <p class="note">Lost in the neon? See the <a href="https://github.com/stephenlb/openpearl">README</a> for setup instructions.</p>
+    <p class="note">See the <a href="https://github.com/stephenlb/openpearl">README</a> for full setup instructions.</p>
+  </section>
 </main>
 <script>
 document.getElementById("copy-prompt").onclick=function(){
