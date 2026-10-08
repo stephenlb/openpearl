@@ -90,6 +90,19 @@ gh issue create -t "Button is misaligned" \
    - Enable Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests".
    - Add the secret ANTHROPIC_API_KEY under Settings > Secrets and variables > Actions (or the Amazon Bedrock secrets listed in https://github.com/stephenlb/openpearl#setup).</code></pre>
     <button id="copy-prompt" type="button">Copy prompt</button>
+    <p>Or move in by hand: copy the workflow files into your project, commit them, then finish setup in GitHub.</p>
+    <pre><code>git clone --depth 1 https://github.com/stephenlb/openpearl /tmp/openpearl
+mkdir -p .github/workflows
+cp -r /tmp/openpearl/.github/workflows/issue-to-pr.yml /tmp/openpearl/.github/workflows/evals .github/workflows/
+git checkout -b add-openpearl
+git add .github/workflows
+git commit -m "Add OpenPearl"
+git push origin add-openpearl</code></pre>
+    <ol>
+      <li>Enable <strong>Settings &gt; Actions &gt; General &gt; Allow GitHub Actions to create and approve pull requests</strong>.</li>
+      <li>Add the secret <code>ANTHROPIC_API_KEY</code> under <strong>Settings &gt; Secrets and variables &gt; Actions</strong>.</li>
+      <li>Merge the branch, then open an issue and watch the robot work.</li>
+    </ol>
     <p class="note">See the <a href="https://github.com/stephenlb/openpearl">README</a> for full setup instructions.</p>
   </section>
 </main>
