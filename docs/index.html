@@ -84,7 +84,7 @@ gh issue create -t "Button is misaligned" \
     <p>Paste this prompt into your coding agent (Claude Code, Codex, OpenCode, Pi) from the root of your project. It installs the OpenPearl workflow files.</p>
     <pre id="install-prompt"><code>Install OpenPearl into this project.
 
-1. Download the .github/workflows directory from https://github.com/stephenlb/openpearl (branch main) into this project's .github/workflows directory: issue-to-pr.yml and the evals/ folder (evals/pr-ready-to-merge.md). Only also copy jira-to-issue.yml, issue-comment-to-jira.yml and trello-to-issue.yml if I use Jira or Trello. For example: git clone --depth 1 https://github.com/stephenlb/openpearl /tmp/openpearl, then copy the files. Do not overwrite existing files without asking me.
+1. Download the .github/workflows directory from https://github.com/stephenlb/openpearl (branch main) into this project's .github/workflows directory: issue-to-pr.yml, pr-comment-chat.yml, retry-issue-to-pr.yml and the evals/ folder (evals/pr-ready-to-merge.md). Only also copy jira-to-issue.yml, issue-comment-to-jira.yml and trello-to-issue.yml if I use Jira or Trello. For example: git clone --depth 1 https://github.com/stephenlb/openpearl /tmp/openpearl, then copy the files. Do not overwrite existing files without asking me.
 2. Do not modify any other files in my project.
 3. Commit the new files on a branch and tell me to finish setup:
    - Enable Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests".
@@ -93,7 +93,7 @@ gh issue create -t "Button is misaligned" \
     <p>Or move in by hand: copy the workflow files into your project, commit them, then finish setup in GitHub.</p>
     <pre><code>git clone --depth 1 https://github.com/stephenlb/openpearl /tmp/openpearl
 mkdir -p .github/workflows
-cp -r /tmp/openpearl/.github/workflows/issue-to-pr.yml /tmp/openpearl/.github/workflows/evals .github/workflows/
+cp -r /tmp/openpearl/.github/workflows/issue-to-pr.yml /tmp/openpearl/.github/workflows/pr-comment-chat.yml /tmp/openpearl/.github/workflows/retry-issue-to-pr.yml /tmp/openpearl/.github/workflows/evals .github/workflows/
 git checkout -b add-openpearl
 git add .github/workflows
 git commit -m "Add OpenPearl"
@@ -101,7 +101,7 @@ git push origin add-openpearl</code></pre>
     <ol>
       <li>Enable <strong>Settings &gt; Actions &gt; General &gt; Allow GitHub Actions to create and approve pull requests</strong>.</li>
       <li>Add the secret <code>ANTHROPIC_API_KEY</code> under <strong>Settings &gt; Secrets and variables &gt; Actions</strong>.</li>
-      <li>Merge the branch, then open an issue and watch the robot work.</li>
+      <li>Open a pull request from the <code>add-openpearl</code> branch and merge it, then open an issue and watch the robot work.</li>
     </ol>
     <p class="note">See the <a href="https://github.com/stephenlb/openpearl">README</a> for full setup instructions.</p>
   </section>
