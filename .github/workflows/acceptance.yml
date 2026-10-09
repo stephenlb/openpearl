@@ -1,0 +1,79 @@
+name: Acceptance tests
+run-name: acceptance-${{ inputs.request_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Full candidate commit SHA
+        required: true
+      request_id:
+        description: Unique caller identifier used to retrieve the result
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # Runner and local tests come from the trusted default branch, never the candidate.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted
+          persist-credentials: false
+
+      - name: Validate candidate
+        env:
+          SHA: ${{ inputs.sha }}
+        run: '[[ "$SHA" =~ ^[0-9a-f]{40}$ ]]'
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha }}
+          path: candidate
+          persist-credentials: false
+
+      # These credentials exist only in this job, which never runs a coding agent.
+      - uses: actions/checkout@v4
+        if: vars.ACCEPTANCE_REPOSITORY != ''
+        with:
+          repository: ${{ vars.ACCEPTANCE_REPOSITORY }}
+          ref: ${{ vars.ACCEPTANCE_REF || 'main' }}
+          token: ${{ secrets.ACCEPTANCE_TOKEN || github.token }}
+          path: suite
+          persist-credentials: false
+
+      - name: Run acceptance scripts
+        env:
+          EXTERNAL: ${{ vars.ACCEPTANCE_REPOSITORY }}
+          MANIFEST: ${{ vars.ACCEPTANCE_MANIFEST || 'acceptance/suite.json' }}
+          SHA: ${{ inputs.sha }}
+        run: |
+          root="$GITHUB_WORKSPACE/trusted"
+          [ -z "$EXTERNAL" ] || root="$GITHUB_WORKSPACE/suite"
+          python3 trusted/.github/workflows/scripts/acceptance.py "$root/$MANIFEST" \
+            --project "$GITHUB_WORKSPACE/candidate" --output "$RUNNER_TEMP/acceptance" --sha "$SHA"
+
+      - name: Retain full logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-logs
+          path: ${{ runner.temp }}/acceptance/*.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Publish agent feedback
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-result
+          path: |
+            ${{ runner.temp }}/acceptance/result.json
+            ${{ runner.temp }}/acceptance/feedback.md
+          if-no-files-found: error
+          retention-days: 14
