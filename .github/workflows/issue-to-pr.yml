@@ -61,7 +61,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           # Usage: gh_retry <command...> (stdin is buffered and replayed on each attempt)
-          # Retries only rate-limit/transient errors (secondary rate limit, HTTP 403/429/502/503)
+          # Retries only rate-limit errors (secondary rate limit, HTTP 429), not 403 permission errors or 502/503 (which may have already created the comment)
           # with 20s, 40s, 80s, 160s, 240s backoff; any other failure is returned immediately.
           mkdir -p "$RUNNER_TEMP/bin"
           cat > "$RUNNER_TEMP/bin/gh_retry" <<'SCRIPT'
@@ -73,7 +73,7 @@ jobs:
             "$@" < "$in" 2> "$err" && { cat "$err" >&2; exit 0; }
             rc=$?
             cat "$err" >&2
-            grep -qiE 'too quickly|rate limit|secondary rate|HTTP (403|429|502|503)' "$err" || exit $rc
+            grep -qiE 'too quickly|rate limit|abuse|HTTP 429' "$err" || exit $rc
             [ "$attempt" -lt 6 ] || exit $rc
             delay=$(( attempt == 5 ? 240 : 20 * (1 << (attempt - 1)) ))
             echo "gh_retry: rate limited (attempt $attempt/6), retrying in ${delay}s" >&2
