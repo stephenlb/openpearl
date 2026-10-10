@@ -1,12 +1,12 @@
 // Structured event log: timestamped events in a ring buffer, queryable and JSONL-serializable.
 export function createEventLog({ now = Date.now, cap = Infinity } = {}) {
   if (cap !== Infinity && (!Number.isInteger(cap) || cap < 1)) throw new RangeError('cap must be a positive integer');
-  let events = [];
+  const events = [];
   let seq = 0;
 
   function push(ev) {
     events.push(ev);
-    if (events.length > cap) events = events.slice(events.length - cap);
+    if (events.length > cap) events.shift();
   }
 
   function emit(type, data = {}) {
@@ -28,15 +28,17 @@ export function createEventLog({ now = Date.now, cap = Infinity } = {}) {
   // Appends events parsed from JSONL (blank lines skipped); returns the number loaded.
   function fromJSONL(str) {
     if (typeof str !== 'string') throw new TypeError('str must be a string');
-    let n = 0;
-    for (const line of str.split('\n')) {
+    const parsed = [];
+    for (const line of str.split(/\r?\n/)) {
       if (!line.trim()) continue;
       const ev = JSON.parse(line);
-      if (!ev || typeof ev.type !== 'string' || !Number.isFinite(ev.t)) throw new TypeError('invalid event line');
-      push({ seq: seq++, t: ev.t, type: ev.type, data: ev.data ?? {} });
-      n++;
+      if (!ev || typeof ev.type !== 'string' || !ev.type || !Number.isFinite(ev.t)) throw new TypeError('invalid event line');
+      const data = ev.data ?? {};
+      if (typeof data !== 'object' || Array.isArray(data)) throw new TypeError('invalid event line');
+      parsed.push({ t: ev.t, type: ev.type, data });
     }
-    return n;
+    for (const p of parsed) push({ seq: seq++, ...p });
+    return parsed.length;
   }
 
   return { emit, query, toJSONL, fromJSONL, size: () => events.length };

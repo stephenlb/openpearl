@@ -61,3 +61,19 @@ test('fromJSONL rejects bad input and respects cap', () => {
 test('empty log serializes to empty string', () => {
   assert.equal(setup().log.toJSONL(), '');
 });
+
+test('fromJSONL is atomic on bad input and keeps seq continuous', () => {
+  const { log } = setup();
+  log.emit('a');
+  assert.throws(() => log.fromJSONL('{"t":1,"type":"b"}\n{bad'), SyntaxError);
+  assert.throws(() => log.fromJSONL('{"t":1,"type":"b","data":5}'), TypeError);
+  assert.equal(log.size(), 1);
+  assert.equal(log.fromJSONL('{"t":1,"type":"b"}\r\n{"t":2,"type":"c"}'), 2);
+  assert.equal(log.emit('d').seq, 3);
+});
+
+test('since works with cap', () => {
+  const { log, tick } = setup({ cap: 2 });
+  log.emit('a'); tick(5); log.emit('b'); tick(5); log.emit('c');
+  assert.deepEqual(log.query({ since: 5 }).map((e) => e.type), ['b', 'c']);
+});
