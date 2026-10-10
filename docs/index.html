@@ -16,6 +16,7 @@
       <a class="link" href="https://github.com/stephenlb/openpearl">GitHub</a>
       <a class="link" href="#install">Setup</a>
       <a class="link" href="https://github.com/stephenlb/openpearl/issues">Issues</a>
+      <a class="link" href="research.html">Research</a>
       <a class="link pill" href="https://discord.gg/mygDNrQ7DJ">Discord</a>
       <a class="link pill primary" href="#install">Get started</a>
     </div>
@@ -77,6 +78,11 @@ gh run watch</code></pre>
   -f message="Add shot.png" -f content="$(base64 &lt; shot.png | tr -d '\n')"
 gh issue create -t "Button is misaligned" \
   -b "![shot](https://github.com/{owner}/{repo}/blob/HEAD/issue-assets/shot.png?raw=true)"</code></pre>
+  </section>
+  <section id="research">
+    <p class="eyebrow">Research</p>
+    <h2>Can it build a self-healing, self-improving, self-optimizing engine?</h2>
+    <p>We opened 63 issues with <code>gh issue create</code> and let the pipeline build an engine of 43 source files, repair its own gates, and recover from a red <code>main</code>. 59 of 63 PRs merged, merge conflicts were resolved 17 of 17 times, and a watchdog cut red-main recovery from over an hour to under two minutes. Run time did not improve. <a href="research.html">Read the full report with charts and data</a>.</p>
   </section>
   <section id="install">
     <p class="eyebrow">Setup</p>

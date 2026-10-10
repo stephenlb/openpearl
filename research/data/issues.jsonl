@@ -1,0 +1,63 @@
+{"n": 1, "issue": 140, "url": "https://github.com/stephenlb/openpearl/issues/140", "title": "Scaffold pearl-engine package", "phase": "core", "kind": "normal", "created_at": 1791594214.92726}
+{"n":"F01","issue":142,"url":"https://github.com/stephenlb/openpearl/issues/142","title":"Pipeline fix: run engine tests","phase":"fix","kind":"fix","created_at":1791594516}
+{"n": 2, "issue": 144, "url": "https://github.com/stephenlb/openpearl/issues/144", "title": "Add task runner with retries", "phase": "core", "kind": "normal", "created_at": 1791594721.550909}
+{"n": 3, "issue": 145, "url": "https://github.com/stephenlb/openpearl/issues/145", "title": "Add exponential backoff with jitter", "phase": "core", "kind": "normal", "created_at": 1791594722.5462499}
+{"n": 4, "issue": 146, "url": "https://github.com/stephenlb/openpearl/issues/146", "title": "Add circuit breaker", "phase": "core", "kind": "normal", "created_at": 1791594723.604015}
+{"n": 5, "issue": 150, "url": "https://github.com/stephenlb/openpearl/issues/150", "title": "Add metrics recorder", "phase": "core", "kind": "normal", "created_at": 1791595022.936084}
+{"n": 6, "issue": 151, "url": "https://github.com/stephenlb/openpearl/issues/151", "title": "Add structured event log", "phase": "core", "kind": "normal", "created_at": 1791595023.991217}
+{"n": 7, "issue": 152, "url": "https://github.com/stephenlb/openpearl/issues/152", "title": "Add config loader with validation", "phase": "core", "kind": "normal", "created_at": 1791595024.9859}
+{"n": 8, "issue": 156, "url": "https://github.com/stephenlb/openpearl/issues/156", "title": "Add timeout wrapper", "phase": "core", "kind": "normal", "created_at": 1791595323.729294}
+{"n": 9, "issue": 157, "url": "https://github.com/stephenlb/openpearl/issues/157", "title": "Add health check module", "phase": "core", "kind": "normal", "created_at": 1791595324.6078138}
+{"n": 10, "issue": 158, "url": "https://github.com/stephenlb/openpearl/issues/158", "title": "Add CLI entry", "phase": "core", "kind": "normal", "created_at": 1791595325.525325}
+{"n": 11, "issue": 162, "url": "https://github.com/stephenlb/openpearl/issues/162", "title": "Add fault injector", "phase": "heal", "kind": "normal", "created_at": 1791595578.613409}
+{"n": 12, "issue": 163, "url": "https://github.com/stephenlb/openpearl/issues/163", "title": "Add failure classifier", "phase": "heal", "kind": "normal", "created_at": 1791595579.550932}
+{"n": 13, "issue": 166, "url": "https://github.com/stephenlb/openpearl/issues/166", "title": "Make runner retry only retryable errors", "phase": "heal", "kind": "normal", "created_at": 1791595829.956628}
+{"n": 14, "issue": 167, "url": "https://github.com/stephenlb/openpearl/issues/167", "title": "Add watchdog", "phase": "heal", "kind": "normal", "created_at": 1791595830.951149}
+{"n": 15, "issue": 168, "url": "https://github.com/stephenlb/openpearl/issues/168", "title": "Add checkpoint store", "phase": "heal", "kind": "normal", "created_at": 1791595831.8876631}
+{"n": 16, "issue": 172, "url": "https://github.com/stephenlb/openpearl/issues/172", "title": "Add crash recovery", "phase": "heal", "kind": "normal", "created_at": 1791596085.530514}
+{"n": 17, "issue": 173, "url": "https://github.com/stephenlb/openpearl/issues/173", "title": "Add dead-letter queue", "phase": "heal", "kind": "normal", "created_at": 1791596086.57258}
+{"n": 18, "issue": 174, "url": "https://github.com/stephenlb/openpearl/issues/174", "title": "Add corrupt state repair", "phase": "heal", "kind": "normal", "created_at": 1791596087.5276392}
+{"n": 19, "issue": 178, "url": "https://github.com/stephenlb/openpearl/issues/178", "title": "Add degraded-mode controller", "phase": "heal", "kind": "normal", "created_at": 1791596248.117087}
+{"n": 20, "issue": 179, "url": "https://github.com/stephenlb/openpearl/issues/179", "title": "Add self-heal playbook engine", "phase": "heal", "kind": "normal", "created_at": 1791596249.0596638}
+{"n": 21, "issue": 182, "url": "https://github.com/stephenlb/openpearl/issues/182", "title": "Add outcome learning store", "phase": "improve", "kind": "normal", "created_at": 1791596546.072212}
+{"n": 22, "issue": 183, "url": "https://github.com/stephenlb/openpearl/issues/183", "title": "Add strategy scoring and selection", "phase": "improve", "kind": "normal", "created_at": 1791596547.120259}
+{"n": 23, "issue": 184, "url": "https://github.com/stephenlb/openpearl/issues/184", "title": "Add postmortem generator", "phase": "improve", "kind": "normal", "created_at": 1791596548.0794492}
+{"n":"F02","issue":188,"url":"https://github.com/stephenlb/openpearl/issues/188","title":"[F02] Pipeline fix: re-sync with base and retry when auto-merge fails because main moved","phase":"fix","kind":"fix","created_at":1791596745}
+{"n":"F03","issue":189,"url":"https://github.com/stephenlb/openpearl/issues/189","title":"[F03] Fix research/engine package test script (node --test test fails on Node 24)","phase":"fix","kind":"fix","created_at":1791596746}
+{"n": 24, "issue": 190, "url": "https://github.com/stephenlb/openpearl/issues/190", "title": "Add issue draft generator from failures", "phase": "improve", "kind": "normal", "created_at": 1791596801.3467038}
+{"n": 25, "issue": 191, "url": "https://github.com/stephenlb/openpearl/issues/191", "title": "Add regression test generator", "phase": "improve", "kind": "normal", "created_at": 1791596802.405184}
+{"n": 26, "issue": 192, "url": "https://github.com/stephenlb/openpearl/issues/192", "title": "Add A/B comparison utility", "phase": "improve", "kind": "normal", "created_at": 1791596803.310742}
+{"n": 27, "issue": 198, "url": "https://github.com/stephenlb/openpearl/issues/198", "title": "Add bandit strategy selector", "phase": "improve", "kind": "normal", "created_at": 1791597148.1291342}
+{"n": 28, "issue": 199, "url": "https://github.com/stephenlb/openpearl/issues/199", "title": "Add improvement ledger", "phase": "improve", "kind": "normal", "created_at": 1791597149.099638}
+{"n": 29, "issue": 200, "url": "https://github.com/stephenlb/openpearl/issues/200", "title": "Add code quality metrics collector", "phase": "improve", "kind": "normal", "created_at": 1791597150.113187}
+{"n":"F04","issue":201,"url":"https://github.com/stephenlb/openpearl/issues/201","title":"Fix red tests on main","phase":"fix","kind":"fix","created_at":1791597189}
+{"n":"F05","issue":202,"url":"https://github.com/stephenlb/openpearl/issues/202","title":"Pipeline fix: rate-limit backoff","phase":"fix","kind":"fix","created_at":1791599889}
+{"n": 30, "issue": 208, "url": "https://github.com/stephenlb/openpearl/issues/208", "title": "Add feedback loop orchestrator", "phase": "improve", "kind": "normal", "created_at": 1791601544.8088698}
+{"n": 31, "issue": 209, "url": "https://github.com/stephenlb/openpearl/issues/209", "title": "Add adaptive timeout estimator", "phase": "optimize", "kind": "normal", "created_at": 1791601545.8817952}
+{"n": 32, "issue": 212, "url": "https://github.com/stephenlb/openpearl/issues/212", "title": "Add adaptive concurrency limiter", "phase": "optimize", "kind": "normal", "created_at": 1791601887.155741}
+{"n": 33, "issue": 213, "url": "https://github.com/stephenlb/openpearl/issues/213", "title": "Add TTL cache with adaptive TTL", "phase": "optimize", "kind": "normal", "created_at": 1791601888.1058402}
+{"n": 34, "issue": 216, "url": "https://github.com/stephenlb/openpearl/issues/216", "title": "Add micro-benchmark harness", "phase": "optimize", "kind": "normal", "created_at": 1791602321.887244}
+{"n": 35, "issue": 217, "url": "https://github.com/stephenlb/openpearl/issues/217", "title": "Add auto-tuner hill climber", "phase": "optimize", "kind": "normal", "created_at": 1791602322.976369}
+{"n": 36, "issue": 220, "url": "https://github.com/stephenlb/openpearl/issues/220", "title": "Add batching queue", "phase": "optimize", "kind": "normal", "created_at": 1791602573.608396}
+{"n": 37, "issue": 221, "url": "https://github.com/stephenlb/openpearl/issues/221", "title": "Add load shedder", "phase": "optimize", "kind": "normal", "created_at": 1791602574.624892}
+{"n": 38, "issue": 224, "url": "https://github.com/stephenlb/openpearl/issues/224", "title": "Add cost budget tracker", "phase": "optimize", "kind": "normal", "created_at": 1791602918.283208}
+{"n": 39, "issue": 225, "url": "https://github.com/stephenlb/openpearl/issues/225", "title": "Add profiler for task stages", "phase": "optimize", "kind": "normal", "created_at": 1791602919.243801}
+{"n": 40, "issue": 228, "url": "https://github.com/stephenlb/openpearl/issues/228", "title": "Add self-optimizing pipeline facade", "phase": "optimize", "kind": "normal", "created_at": 1791603215.211187}
+{"n": 41, "issue": 230, "url": "https://github.com/stephenlb/openpearl/issues/230", "title": "Add simulation runner", "phase": "measure", "kind": "normal", "created_at": 1791603600.845738}
+{"n": 42, "issue": 231, "url": "https://github.com/stephenlb/openpearl/issues/231", "title": "Add scorecard", "phase": "measure", "kind": "normal", "created_at": 1791603601.881432}
+{"n": 43, "issue": 234, "url": "https://github.com/stephenlb/openpearl/issues/234", "title": "Add SVG chart helper", "phase": "measure", "kind": "normal", "created_at": 1791603944.432291}
+{"n": 44, "issue": 235, "url": "https://github.com/stephenlb/openpearl/issues/235", "title": "Add benchmark scenarios file", "phase": "measure", "kind": "normal", "created_at": 1791603945.31967}
+{"n": 45, "issue": 238, "url": "https://github.com/stephenlb/openpearl/issues/238", "title": "Add end-to-end demo script", "phase": "measure", "kind": "normal", "created_at": 1791604478.479313}
+{"n": 46, "issue": 239, "url": "https://github.com/stephenlb/openpearl/issues/239", "title": "TRAP: ambiguous request", "phase": "trap", "kind": "trap", "created_at": 1791604479.4221928}
+{"n": 47, "issue": 242, "url": "https://github.com/stephenlb/openpearl/issues/242", "title": "TRAP: fix seeded bug in backoff", "phase": "trap", "kind": "trap", "created_at": 1791604676.418483}
+{"n": 48, "issue": 244, "url": "https://github.com/stephenlb/openpearl/issues/244", "title": "TRAP: conflicting edit of runner", "phase": "trap", "kind": "trap", "created_at": 1791604834.14734}
+{"n": 49, "issue": 245, "url": "https://github.com/stephenlb/openpearl/issues/245", "title": "TRAP: conflicting edit of runner 2", "phase": "trap", "kind": "trap", "created_at": 1791604835.2271638}
+{"n": 50, "issue": 248, "url": "https://github.com/stephenlb/openpearl/issues/248", "title": "TRAP: impossible requirement", "phase": "trap", "kind": "trap", "created_at": 1791605405.008638}
+{"n": "R01", "issue": 250, "url": "https://github.com/stephenlb/openpearl/issues/250", "title": "Add structured event log", "phase": "fix", "kind": "refile", "created_at": 1791605820.622517}
+{"n": "R02", "issue": 252, "url": "https://github.com/stephenlb/openpearl/issues/252", "title": "Add crash recovery", "phase": "fix", "kind": "refile", "created_at": 1791606061.5246232}
+{"n": "R03", "issue": 254, "url": "https://github.com/stephenlb/openpearl/issues/254", "title": "Add dead-letter queue", "phase": "fix", "kind": "refile", "created_at": 1791606302.570095}
+{"n": "F06", "issue": 256, "url": "https://github.com/stephenlb/openpearl/issues/256", "title": "Fix two red tests on main: '??= counts as one branch' and 'cutoff scales with five priority levels'", "phase": "fix", "kind": "fix", "created_at": 1791606755.984545}
+{"n": "R04", "issue": 258, "url": "https://github.com/stephenlb/openpearl/issues/258", "title": "Re-file of E23: Add postmortem generator", "phase": "fix", "kind": "refile", "created_at": 1791606906.971903}
+{"n": "F07", "issue": 260, "url": "https://github.com/stephenlb/openpearl/issues/260", "title": "Pipeline fix: main watchdog that opens a fix issue when main goes red", "phase": "fix", "kind": "fix", "created_at": 1791607305.677428}
+{"n": "F08", "issue": 261, "url": "https://github.com/stephenlb/openpearl/issues/261", "title": "Pipeline fix: retry workflow also re-runs Issue to PR when it failed before any real work", "phase": "fix", "kind": "fix", "created_at": 1791607306.762778}
+{"n": "X01", "issue": 265, "url": "https://github.com/stephenlb/openpearl/issues/265", "title": "Chaos drill: failing test", "phase": "fix", "kind": "drill", "created_at": 1791607510.242184}
