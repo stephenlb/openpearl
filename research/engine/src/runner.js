@@ -6,12 +6,12 @@ const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // Only errors positively classified as non-retryable (`permanent`) are fatal;
 // `unknown` errors are still retried. The error name is ignored: a bare
 // `TypeError` (e.g. undici's `fetch failed`) may wrap a transient failure.
-function isFatal(err) {
+function judge(err) {
   const probe = err !== null && typeof err === 'object'
     ? { name: err.name === 'BreakerOpenError' ? err.name : 'Error', message: err.message, code: err.code, cause: err.cause }
     : err;
-  const { class: kind, retryable } = classifyError(probe);
-  return !retryable && kind !== 'unknown';
+  const verdict = classifyError(probe);
+  return { verdict, fatal: !verdict.retryable && verdict.class !== 'unknown' };
 }
 
 /**
@@ -55,17 +55,17 @@ export async function runTask(fn, { retries = 3, delayMs = 0, sleep = defaultSle
       value = useTimeout ? await withTimeout(() => fn(attempt), timeoutMs, timerOpts) : await fn(attempt);
     } catch (err) {
       error = err;
-      const verdict = classifyError(err);
+      const { verdict, fatal } = judge(err);
       const isObj = err !== null && typeof err === 'object';
       errors.push({
         attempt: attempts,
-        name: isObj ? err.name : typeof err,
-        message: isObj ? String(err.message) : String(err),
+        name: isObj ? (typeof err.name === 'string' ? err.name : 'Error') : typeof err,
+        message: isObj ? (err.message == null ? '' : String(err.message)) : String(err),
         class: verdict.class,
         retryable: verdict.retryable,
       });
       notify({ attempt: attempts, ok: false, error: err });
-      if (!retryAll && isFatal(err)) {
+      if (!retryAll && fatal) {
         reason = 'permanent';
         break;
       }
