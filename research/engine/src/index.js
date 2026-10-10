@@ -14,4 +14,5 @@ export { createCheckpointStore } from './checkpoint.js';
 export { createPlaybook, DEFAULT_RULES, REMEDIES } from './playbook.js';
 export { repairJSONL, repairCheckpoint } from './repair.js';
 export { createDegrader, DEFAULT_LEVELS } from './degrade.js';
-export { rankStrategies, wilsonLowerBound } from './strategy.js';
+export { createLearner, wilsonLowerBound } from './learn.js';
+export { rankStrategies, wilsonLowerBound as strategyWilsonLowerBound } from './strategy.js';
