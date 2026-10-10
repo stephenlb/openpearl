@@ -25,3 +25,4 @@ export { measureSource, scanDir } from './quality.js';
 export { runImprovementCycle } from './loop.js';
 export { createTimeoutEstimator } from './adaptive-timeout.js';
 export { createCache, adaptTtl } from './cache.js';
+export { createLimiter } from './concurrency.js';
