@@ -1,0 +1,35 @@
+{
+ "natural_R04": {
+  "bad_merged": "2026-10-10T04:44:27Z",
+  "watchdog_issue_opened": "2026-10-10T04:44:40Z",
+  "fix_pr_opened": "2026-10-10T04:45:44Z",
+  "fix_merged": "2026-10-10T04:46:28Z",
+  "detect_s": 13.0,
+  "repair_s": 108.0,
+  "mttr_s": 121.0,
+  "red_since_pr259_merged": "2026-10-10T04:38:57Z",
+  "undetected_s": 343.0,
+  "true_mttr_s": 451.0
+ },
+ "drill_X01": {
+  "bad_merged": "2026-10-10T04:47:26Z",
+  "watchdog_issue_opened": "2026-10-10T04:47:39Z",
+  "fix_pr_opened": "2026-10-10T04:48:41Z",
+  "fix_merged": "2026-10-10T04:49:12Z",
+  "detect_s": 13.0,
+  "repair_s": 93.0,
+  "mttr_s": 106.0
+ },
+ "manual_era": {
+  "red1": {
+   "start": "2026-10-10T01:51:45Z",
+   "fixed": "2026-10-10T02:58:07Z",
+   "mttr_s": 3982.0
+  },
+  "red2": {
+   "start": "2026-10-10T02:59:08Z",
+   "fixed": "2026-10-10T04:34:31Z",
+   "mttr_s": 5723.0
+  }
+ }
+}
