@@ -12,3 +12,4 @@ export { createChaos, ChaosError } from './chaos.js';
 export { createWatchdog } from './watchdog.js';
 export { createCheckpointStore } from './checkpoint.js';
 export { repairJSONL, repairCheckpoint } from './repair.js';
+export { createDegrader, DEFAULT_LEVELS } from './degrade.js';
