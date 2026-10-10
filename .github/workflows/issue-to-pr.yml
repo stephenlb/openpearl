@@ -60,9 +60,32 @@ jobs:
         env:
           GH_REPO: ${{ github.repository }}
         run: |
+          # Usage: gh_retry <command...> (stdin is buffered and replayed on each attempt)
+          # Retries only rate-limit/transient errors (secondary rate limit, HTTP 403/429/502/503)
+          # with 20s, 40s, 80s, 160s, 240s backoff; any other failure is returned immediately.
+          mkdir -p "$RUNNER_TEMP/bin"
+          cat > "$RUNNER_TEMP/bin/gh_retry" <<'SCRIPT'
+          #!/usr/bin/env bash
+          in=$(mktemp) err=$(mktemp)
+          trap 'rm -f "$in" "$err"' EXIT
+          cat > "$in"
+          for attempt in 1 2 3 4 5 6; do
+            "$@" < "$in" 2> "$err" && { cat "$err" >&2; exit 0; }
+            rc=$?
+            cat "$err" >&2
+            grep -qiE 'too quickly|rate limit|secondary rate|HTTP (403|429|502|503)' "$err" || exit $rc
+            [ "$attempt" -lt 6 ] || exit $rc
+            delay=$(( attempt == 5 ? 240 : 20 * (1 << (attempt - 1)) ))
+            echo "gh_retry: rate limited (attempt $attempt/6), retrying in ${delay}s" >&2
+            sleep "$delay"
+          done
+          SCRIPT
+          chmod +x "$RUNNER_TEMP/bin/gh_retry"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          export PATH="$RUNNER_TEMP/bin:$PATH"
           printf "Started processing this issue. I'll post status updates here as work progresses. See the [workflow run](%s).\n\n%s\n" \
             "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" "$MARKER" \
-            | gh issue comment "$ISSUE_NUMBER" --body-file -
+            | gh_retry gh issue comment "$ISSUE_NUMBER" --body-file -
 
       - uses: actions/checkout@v4
         with:
@@ -180,7 +203,7 @@ jobs:
           cat > "$RUNNER_TEMP/bin/issue-say" <<'SCRIPT'
           #!/usr/bin/env bash
           if [ "$1" = --body ]; then body=$2; else body=$(cat); fi
-          printf '%s\n\n%s\n' "$body" "$MARKER" | gh issue comment "$ISSUE_NUMBER" --body-file -
+          printf '%s\n\n%s\n' "$body" "$MARKER" | gh_retry gh issue comment "$ISSUE_NUMBER" --body-file -
           SCRIPT
           chmod +x "$RUNNER_TEMP/bin/issue-say"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
@@ -318,7 +341,7 @@ jobs:
             cat "$RUNNER_TEMP/review-$round.md"
             echo "::endgroup::"
 
-            gh pr comment "$PR_NUMBER" --body-file - <<EOF
+            gh_retry gh pr comment "$PR_NUMBER" --body-file - <<EOF
           ## Code review (round $round)
 
           $(cat "$RUNNER_TEMP/review-$round.md")
@@ -348,7 +371,7 @@ jobs:
               || echo "_Fix verification unavailable._" > "$RUNNER_TEMP/verify-$round.md"
             cat "$RUNNER_TEMP/verify-$round.md"
 
-            gh pr comment "$PR_NUMBER" --body-file - <<EOF
+            gh_retry gh pr comment "$PR_NUMBER" --body-file - <<EOF
           ## Fix verification (round $round)
 
           $(cat "$RUNNER_TEMP/verify-$round.md")
@@ -384,7 +407,7 @@ jobs:
           if [ "$unresolved" = "true" ]; then
             echo "unresolved=true" >> "$GITHUB_OUTPUT"
             git merge --abort || true
-            gh pr comment "$PR_NUMBER" --body "Could not automatically resolve merge conflicts with \`$BASE\`; manual resolution required.
+            gh_retry gh pr comment "$PR_NUMBER" --body "Could not automatically resolve merge conflicts with \`$BASE\`; manual resolution required.
 
           $MARKER"
             issue-say --body "Could not automatically resolve merge conflicts with \`$BASE\`. Manual resolution required."
@@ -396,7 +419,7 @@ jobs:
           done < "$RUNNER_TEMP/conflicts.txt"
           git commit -m "Merge $BASE and resolve conflicts"
           git push
-          gh pr comment "$PR_NUMBER" --body "Resolved merge conflicts with \`$BASE\`:
+          gh_retry gh pr comment "$PR_NUMBER" --body "Resolved merge conflicts with \`$BASE\`:
 
           $(sed 's/^/- /' "$RUNNER_TEMP/conflicts.txt")
 
@@ -506,7 +529,7 @@ jobs:
           fi
           cat "$RUNNER_TEMP/eval.md"
 
-          gh pr comment "$PR_NUMBER" --body-file - <<EOF
+          gh_retry gh pr comment "$PR_NUMBER" --body-file - <<EOF
           ## Auto-merge eval
 
           $(cat "$RUNNER_TEMP/eval.md")
