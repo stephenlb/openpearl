@@ -6,3 +6,4 @@ export { loadConfig, DEFAULTS } from './config.js';
 export { createMetrics } from './metrics.js';
 export { createHealth } from './health.js';
 export { withTimeout, TimeoutError } from './timeout.js';
+export { classifyError } from './classify.js';
