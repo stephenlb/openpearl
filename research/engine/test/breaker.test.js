@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createBreaker } from '../src/index.js';
+import { createBreaker, BreakerOpenError } from '../src/index.js';
 
 const fail = async () => { throw new Error('boom'); };
 const ok = async () => 'ok';
@@ -97,4 +97,39 @@ test('defaults: threshold 5, cooldown 30000', async () => {
   assert.equal(breaker.state(), 'open');
   t = 30000;
   assert.equal(breaker.state(), 'half-open');
+});
+
+test('slow call started before trip cannot close the breaker', async () => {
+  const { breaker } = setup();
+  let release;
+  const slow = breaker.call(() => new Promise((r) => { release = r; }));
+  await failTimes(breaker, 3);
+  assert.equal(breaker.state(), 'open');
+  release('late');
+  assert.equal(await slow, 'late');
+  assert.equal(breaker.state(), 'open');
+});
+
+test('slow failure started before trip does not restart cooldown', async () => {
+  const { breaker, advance } = setup();
+  let reject;
+  const slow = breaker.call(() => new Promise((_, r) => { reject = r; }));
+  await failTimes(breaker, 3);
+  advance(100);
+  reject(new Error('late'));
+  await assert.rejects(slow, /late/);
+  assert.equal(breaker.state(), 'half-open');
+});
+
+test('rejection is a BreakerOpenError', async () => {
+  const { breaker } = setup();
+  await failTimes(breaker, 3);
+  await assert.rejects(breaker.call(ok), BreakerOpenError);
+});
+
+test('synchronously throwing fn counts as a failure', async () => {
+  const { breaker } = setup();
+  const boom = () => { throw new Error('sync'); };
+  for (let i = 0; i < 3; i++) await assert.rejects(breaker.call(boom), /sync/);
+  assert.equal(breaker.state(), 'open');
 });
