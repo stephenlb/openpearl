@@ -1,4 +1,8 @@
 // Dependency-free SVG chart helpers. Output is deterministic and fully escaped.
+// Limits (MVP): layout is fixed-size. Legend entries are spaced 90px apart, x tick
+// labels are drawn for every unique x, bar labels are not truncated, and colours
+// repeat after 5 series. Non-array input is treated as empty and entries that are
+// null or non-numeric (including numeric strings) are dropped.
 const COLORS = ['#4e79a7', '#f28e2b', '#59a14f', '#e15759', '#76b7b2'];
 
 export function escapeXml(value) {
@@ -11,6 +15,12 @@ export function escapeXml(value) {
 }
 
 const num = (n) => String(Math.round(n * 100) / 100);
+
+// Tick labels keep precision proportional to the axis max so small ranges stay readable.
+const tickLabel = (v, max) => {
+  const decimals = max >= 1 ? 2 : Math.min(10, 1 - Math.floor(Math.log10(max)));
+  return String(Number(v.toFixed(decimals)));
+};
 
 function layout(opts) {
   const m = { top: 36, right: 16, bottom: 48, left: 56 };
@@ -59,14 +69,14 @@ function yTicks(L, max, ticks = 5) {
     const v = (max * i) / ticks;
     const y = m.top + ph - (ph * i) / ticks;
     out.push(`<line class="grid" x1="${m.left}" y1="${num(y)}" x2="${m.left + pw}" y2="${num(y)}" stroke="#ddd"/>`);
-    out.push(`<text class="y-tick" x="${m.left - 6}" y="${num(y + 4)}" text-anchor="end">${escapeXml(num(v))}</text>`);
+    out.push(`<text class="y-tick" x="${m.left - 6}" y="${num(y + 4)}" text-anchor="end">${escapeXml(tickLabel(v, max))}</text>`);
   }
   return out;
 }
 
 /** data: [{label, value}] */
 export function barChart(rawData = [], opts = {}) {
-  const data = rawData.filter((d) => Number.isFinite(d.value));
+  const data = (Array.isArray(rawData) ? rawData : []).filter((d) => Number.isFinite(d?.value));
   const L = layout(opts);
   const { m, pw, ph } = L;
   const max = niceMax(Math.max(0, ...data.map((d) => d.value)));
@@ -83,9 +93,9 @@ export function barChart(rawData = [], opts = {}) {
 
 /** series: [{name, points: [{x, y}]}] */
 export function lineChart(rawSeries = [], opts = {}) {
-  const series = rawSeries.map((s) => ({
+  const series = (Array.isArray(rawSeries) ? rawSeries : []).filter(Boolean).map((s) => ({
     ...s,
-    points: s.points.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y)),
+    points: (Array.isArray(s.points) ? s.points : []).filter((p) => Number.isFinite(p?.x) && Number.isFinite(p?.y)),
   }));
   const L = layout(opts);
   const { m, pw, ph } = L;
