@@ -56,6 +56,8 @@ export function classifyError(err) {
   if (PERMANENT_CODES.has(code)) return verdict('permanent');
 
   if (name === 'TimeoutError' || (name === 'AbortError' && TIMEOUT_RE.test(message))) return verdict('timeout');
+  // Retrying immediately cannot close an open breaker.
+  if (name === 'BreakerOpenError') return verdict('permanent');
   if (name === 'SyntaxError' || name === 'TypeError' || (name === 'RangeError' && !RESOURCE_RE.test(message))) {
     return verdict('permanent');
   }

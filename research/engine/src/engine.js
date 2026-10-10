@@ -2,14 +2,14 @@
 // adaptive timeout, limiter, cache, metrics and learner behind engine.run().
 // All clocks, timers and sleeps are injectable so tests never really wait.
 import { runTask } from './runner.js';
-import { createBreaker } from './breaker.js';
+import { createBreaker, BreakerOpenError } from './breaker.js';
 import { classifyError } from './classify.js';
 import { createTimeoutEstimator } from './adaptive-timeout.js';
 import { createLimiter } from './concurrency.js';
 import { createCache } from './cache.js';
 import { createMetrics } from './metrics.js';
 import { createLearner } from './learn.js';
-import { withTimeout } from './timeout.js';
+import { withTimeout, TimeoutError } from './timeout.js';
 
 export function createEngine({
   healing = true,
@@ -33,7 +33,8 @@ export function createEngine({
 
   // With healing off the engine makes a single bare attempt: no retries,
   // breaker or adaptive timeout.
-  async function attempt(fn) {
+  // `last.ms` receives the duration of the most recent attempt.
+  async function attempt(fn, last) {
     const started = now();
     try {
       if (!healing) return await fn();
@@ -41,8 +42,17 @@ export function createEngine({
       estimator.observe(Math.max(0, now() - started));
       return value;
     } catch (err) {
-      metrics.inc(`error.${classifyError(err).class}`);
+      // Rejections by an open breaker never ran fn and are not real errors.
+      if (err instanceof BreakerOpenError) {
+        metrics.inc('breaker.rejected');
+      } else {
+        // Timed-out calls feed the estimator so the timeout can adapt upward.
+        if (healing && err instanceof TimeoutError) estimator.observe(Math.max(0, now() - started));
+        metrics.inc(`error.${classifyError(err).class}`);
+      }
       throw err;
+    } finally {
+      last.ms = Math.max(0, now() - started);
     }
   }
 
@@ -58,7 +68,7 @@ export function createEngine({
       const hit = cache.get(cacheKey);
       if (hit !== undefined) {
         metrics.inc('cache.hit');
-        return { ok: true, value: hit, attempts: 0, cached: true };
+        return { ok: true, value: hit.value, attempts: 0, cached: true };
       }
     }
     const token = limiter.acquire();
@@ -67,17 +77,18 @@ export function createEngine({
       return { ok: false, error: new Error('Concurrency limit reached'), attempts: 0, shed: true };
     }
     const started = now();
-    const result = await runTask(() => attempt(fn), {
+    const last = { ms: 0 };
+    const result = await runTask(() => attempt(fn, last), {
       retries: healing ? retries : 0,
       delayMs,
       ...(sleep ? { sleep } : {}),
     });
     const elapsed = Math.max(0, now() - started);
-    limiter.release(result.ok, elapsed, token);
+    limiter.release(result.ok, last.ms, token);
     metrics.observe('latencyMs', elapsed);
     metrics.inc(result.ok ? 'success' : 'failure');
     learner.record({ strategy: name, success: result.ok, costMs: elapsed });
-    if (result.ok && cache && cacheKey !== undefined) cache.set(cacheKey, result.value);
+    if (result.ok && cache && cacheKey !== undefined) cache.set(cacheKey, { value: result.value });
     return result;
   }
 

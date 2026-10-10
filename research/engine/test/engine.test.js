@@ -115,3 +115,46 @@ test('validates arguments', async () => {
   await assert.rejects(() => engine.run('', async () => 1), TypeError);
   await assert.rejects(() => engine.run('x', null), TypeError);
 });
+
+test('breaker rejections are not retried or counted as errors', async () => {
+  const clock = makeClock();
+  let sleeps = 0;
+  const engine = createEngine({
+    now: clock.now,
+    sleep: async () => { sleeps++; },
+    delayMs: 5,
+    retries: 3,
+    breaker: { threshold: 1, cooldownMs: 1000 },
+  });
+  await engine.run('x', async () => { throw new Error('boom'); });
+  sleeps = 0;
+  const r = await engine.run('x', async () => 1);
+  assert.equal(r.ok, false);
+  assert.equal(r.attempts, 1);
+  assert.equal(sleeps, 0);
+  assert.equal(engine.metrics().counters['breaker.rejected'], 1);
+});
+
+test('caches undefined results; cacheKey without a cache just runs', async () => {
+  const engine = createEngine({ cache: { ttlMs: 100 } });
+  let calls = 0;
+  const fn = async () => { calls++; };
+  await engine.run('x', fn, { cacheKey: 'k' });
+  const b = await engine.run('x', fn, { cacheKey: 'k' });
+  assert.equal(b.cached, true);
+  assert.equal(calls, 1);
+  const bare = createEngine();
+  assert.equal((await bare.run('x', async () => 5, { cacheKey: 'k' })).value, 5);
+});
+
+test('counts shed runs and makes a single attempt with healing off', async () => {
+  const engine = createEngine({ healing: false, limiter: { min: 1, max: 1 } });
+  let release;
+  const first = engine.run('a', () => new Promise((res) => { release = res; }));
+  await engine.run('b', async () => 1);
+  release(1);
+  await first;
+  assert.equal(engine.metrics().counters.shed, 1);
+  const bad = await engine.run('c', async () => { throw new Error('x'); });
+  assert.equal(bad.attempts, 1);
+});
