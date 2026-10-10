@@ -189,3 +189,29 @@ test('retryAll retries non-retryable errors', async () => {
   assert.equal(calls, 3);
   assert.equal(res.attempts, 3);
 });
+
+test('onGiveUp is called once when retries are exhausted', async () => {
+  const calls = [];
+  const res = await runTask(
+    () => {
+      throw new Error('x');
+    },
+    { retries: 2, sleep: () => {}, onGiveUp: (info) => calls.push(info) },
+  );
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].attempts, 3);
+  assert.equal(calls[0].error, res.error);
+});
+
+test('onGiveUp is not called on success and a throwing one is ignored', async () => {
+  let given = 0;
+  await runTask(() => 1, { onGiveUp: () => given++ });
+  assert.equal(given, 0);
+  const res = await runTask(
+    () => {
+      throw new Error('x');
+    },
+    { retries: 0, onGiveUp: () => { throw new Error('cb'); } },
+  );
+  assert.equal(res.ok, false);
+});
