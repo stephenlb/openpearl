@@ -1,0 +1,8 @@
+{
+  "name": "openpearl",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test research/engine/test/*.test.js"
+  }
+}
