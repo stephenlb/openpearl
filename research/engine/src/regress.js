@@ -12,6 +12,11 @@ export function generateRegressionTest(failureEvent) {
   }
   const { id, task, input } = failureEvent;
   const err = failureEvent.error ?? {};
+  for (const key of ['name', 'message']) {
+    if (err[key] != null && typeof err[key] !== 'string') {
+      throw new TypeError(`error.${key} must be a string`);
+    }
+  }
   const expected = {
     name: err.name ?? 'Error',
     message: err.message ?? '',
@@ -25,8 +30,9 @@ const input = ${lit(input)};
 const expected = ${lit(expected)};
 
 // Replace with a call into the code under test; it must reject or throw.
+// Fails until implemented so an unedited file can't give false confidence.
 async function reproduce(input) {
-  throw Object.assign(new Error(expected.message), { name: expected.name, code: expected.code ?? undefined });
+  assert.fail('reproduce() not implemented');
 }
 
 test(${lit(title)}, async () => {

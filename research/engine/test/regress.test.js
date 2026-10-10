@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { generateRegressionTest } from '../src/index.js';
@@ -20,7 +20,7 @@ test('output is deterministic and embeds the failure', () => {
   assert.match(src, /from 'node:test'/);
 });
 
-test('output parses and the generated test passes', () => {
+test('output parses and fails until reproduce() is implemented', () => {
   const dir = mkdtempSync(join(tmpdir(), 'regress-'));
   try {
     const file = join(dir, 'gen.test.js');
@@ -28,7 +28,15 @@ test('output parses and the generated test passes', () => {
     const check = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
     assert.equal(check.status, 0, check.stderr);
     const run = spawnSync(process.execPath, ['--test', file], { encoding: 'utf8' });
-    assert.equal(run.status, 0, run.stdout + run.stderr);
+    assert.notEqual(run.status, 0);
+    assert.match(run.stdout + run.stderr, /reproduce\(\) not implemented/);
+    const filled = readFileSync(file, 'utf8').replace(
+      "assert.fail('reproduce() not implemented');",
+      'throw Object.assign(new TypeError(expected.message), { code: expected.code });',
+    );
+    writeFileSync(file, filled);
+    const ok = spawnSync(process.execPath, ['--test', file], { encoding: 'utf8' });
+    assert.equal(ok.status, 0, ok.stdout + ok.stderr);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -38,4 +46,5 @@ test('minimal events and invalid input', () => {
   const src = generateRegressionTest({});
   assert.match(src, /regression: task Error/);
   assert.throws(() => generateRegressionTest(null), TypeError);
+  assert.throws(() => generateRegressionTest({ error: { message: {} } }), TypeError);
 });
