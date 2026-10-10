@@ -3,7 +3,10 @@
 // calls handler(job, err) for each entry, oldest first; entries whose handler
 // resolves are removed, entries whose handler throws/rejects stay queued.
 // Returns { replayed, failed, remaining } counts. Entries pushed during a
-// replay are not replayed in that pass. Deterministic: no clock or RNG.
+// replay are not replayed in that pass. While a replay is in flight the batch
+// is detached from the queue: size/list() show only newly pushed entries, a
+// concurrent replay sees nothing to do, and a crash mid-replay loses the
+// in-flight entries. Deterministic: no clock or RNG.
 export function createDLQ({ max = 100 } = {}) {
   if (!(Number.isInteger(max) && max >= 1)) throw new RangeError('max must be a positive integer');
   let entries = [];
@@ -36,7 +39,9 @@ export function createDLQ({ max = 100 } = {}) {
         }
       }
       // Failed entries are older than anything pushed during replay.
-      entries = kept.concat(entries).slice(-max);
+      const combined = kept.concat(entries);
+      evicted += Math.max(0, combined.length - max);
+      entries = combined.slice(-max);
       return { replayed, failed: kept.length, remaining: entries.length };
     },
     get size() { return entries.length; },

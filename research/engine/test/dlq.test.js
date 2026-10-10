@@ -45,3 +45,11 @@ test('entries pushed during replay are kept for later', async () => {
   await q.replay(() => { q.push('new', 'e'); });
   assert.deepEqual(q.list().map((e) => e.job), ['new']);
 });
+
+test('overflow during replay counts evictions', async () => {
+  const q = createDLQ({ max: 2 });
+  q.push('a', 'e');
+  await q.replay(() => { q.push('n1', 'e'); q.push('n2', 'e'); throw new Error('fail'); });
+  assert.deepEqual(q.list().map((e) => e.job), ['n1', 'n2']);
+  assert.equal(q.evicted, 1);
+});
