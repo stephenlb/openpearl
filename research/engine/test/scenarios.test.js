@@ -2,6 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { loadScenarios, getScenario, validateScenario, validateScenarios } from '../src/index.js';
 
 const BIN = fileURLToPath(new URL('../bin/pearl.js', import.meta.url));
@@ -39,6 +42,17 @@ test('validation rejects bad entries', () => {
   assert.throws(() => validateScenario({ ...good(), corruptStateRate: -0.1 }), /corruptStateRate/);
   assert.throws(() => validateScenarios([]), /non-empty/);
   assert.throws(() => validateScenarios([good(), good()]), /duplicate/);
+});
+
+test('loadScenarios rejects malformed, keyless, and missing files', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'scenarios-'));
+  const bad = join(dir, 'bad.json');
+  writeFileSync(bad, '{not json');
+  assert.throws(() => loadScenarios(bad), SyntaxError);
+  const keyless = join(dir, 'keyless.json');
+  writeFileSync(keyless, '{}');
+  assert.throws(() => loadScenarios(keyless), /non-empty array/);
+  assert.throws(() => loadScenarios(join(dir, 'missing.json')), /ENOENT/);
 });
 
 test('cli scenarios lists and fetches one', () => {

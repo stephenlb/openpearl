@@ -1,4 +1,5 @@
 // Benchmark scenario loader. Reads scenarios/scenarios.json and validates each entry.
+// latencySpikes and corruptStateRate are reserved for a follow-up; simulate() currently consumes only failRate.
 import { readFileSync } from 'node:fs';
 
 export const SCENARIOS_PATH = new URL('../scenarios/scenarios.json', import.meta.url);
