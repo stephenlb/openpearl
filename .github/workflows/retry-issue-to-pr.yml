@@ -27,9 +27,19 @@ jobs:
           # Real failures (agent errors, bad output) are not retried.
           unstarted=$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/jobs" \
             --jq '[.jobs[] | select(.conclusion == "failure" and (.runner_id == null or .runner_id == 0 or (.steps | length) == 0))] | length')
-          if [ "$unstarted" -eq 0 ]; then
+          if [ "$unstarted" -gt 0 ]; then
+            echo "Run $RUN_ID had $unstarted job(s) that never started; re-running."
+            gh run rerun "$RUN_ID" --failed
+            exit 0
+          fi
+          # Failures in the setup steps (e.g. GitHub secondary rate limit) happen
+          # before the agent does any real work, so they are safe to retry.
+          early=$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/jobs" \
+            --jq '[.jobs[] | select(.conclusion == "failure") | first(.steps[] | select(.conclusion == "failure")) | .name | select(. == "Comment that processing started" or . == "Run actions/checkout@v4" or . == "Run actions/setup-node@v4" or . == "Install agent CLI")] | length')
+          if [ "$early" -eq 0 ]; then
             echo "Failure happened after the job started; not retrying."
             exit 0
           fi
-          echo "Run $RUN_ID had $unstarted job(s) that never started; re-running."
+          echo "Run $RUN_ID failed in an early setup step; waiting for rate limits to cool down."
+          sleep 120
           gh run rerun "$RUN_ID" --failed
