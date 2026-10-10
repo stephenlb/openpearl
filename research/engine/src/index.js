@@ -9,3 +9,4 @@ export { withTimeout, TimeoutError } from './timeout.js';
 export { classifyError } from './classify.js';
 export { seededRng } from './rng.js';
 export { createChaos, ChaosError } from './chaos.js';
+export { createCheckpointStore } from './checkpoint.js';
