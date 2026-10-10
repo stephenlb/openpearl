@@ -59,6 +59,34 @@ test('replay-dlq is recorded and does not end the playbook', async () => {
   assert.equal(r.outcome, 'healed');
 });
 
+test('step rng option takes precedence over ctx.rng', async () => {
+  const run = async () => 1;
+  const sleep = async () => {};
+  const a = await createPlaybook({ transient: [{ type: 'backoff', rng: () => 0 }, 'retry'] })
+    .heal(transient, { run, sleep, rng: () => 1 });
+  const b = await createPlaybook({ transient: ['backoff', 'retry'] })
+    .heal(transient, { run, sleep, rng: () => 1 });
+  assert.ok(a.actions[0].delayMs < b.actions[0].delayMs);
+});
+
+test('failing replay-dlq and degrade fall through to unhealed; custom classify', async () => {
+  const pb = createPlaybook({ custom: ['replay-dlq', 'degrade'] });
+  const r = await pb.heal(new Error('x'), {
+    classify: () => ({ class: 'custom' }),
+    dlq: { replay: async () => { throw new Error('d'); } },
+    degrade: async () => { throw new Error('g'); },
+  });
+  assert.deepEqual(types(r), ['replay-dlq:failed', 'degrade:failed']);
+  assert.equal(r.outcome, 'unhealed');
+});
+
+test('retry with times: 0 does nothing', async () => {
+  const pb = createPlaybook({ transient: [{ type: 'retry', times: 0 }] });
+  const r = await pb.heal(transient, { run: async () => 1 });
+  assert.equal(r.outcome, 'unhealed');
+  assert.deepEqual(r.actions, []);
+});
+
 test('missing capabilities are skipped; unmatched class is unhealed', async () => {
   const pb = createPlaybook({ transient: ['retry', 'reset-breaker', 'replay-dlq', 'degrade', 'backoff'] });
   const r = await pb.heal(transient, {});

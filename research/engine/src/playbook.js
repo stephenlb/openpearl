@@ -67,7 +67,7 @@ export function createPlaybook(rules = DEFAULT_RULES) {
         }
       } else if (type === 'backoff') {
         if (typeof ctx.sleep !== 'function') { record(type, 'skipped'); continue; }
-        const delayMs = backoffDelay(backoffs++, { ...opts, rng: ctx.rng ?? opts.rng ?? Math.random });
+        const delayMs = backoffDelay(backoffs++, { ...opts, rng: opts.rng ?? ctx.rng ?? Math.random });
         await ctx.sleep(delayMs);
         record(type, 'ok', { delayMs });
       } else if (type === 'reset-breaker') {
