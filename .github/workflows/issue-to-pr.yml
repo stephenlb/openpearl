@@ -538,7 +538,7 @@ jobs:
                 [ -s "$RUNNER_TEMP/conflicts.txt" ] || { git merge --abort || true; return 1; }
                 agent-retry edit "$GUIDANCE The branch has merge conflicts with origin/$BASE after running 'git merge origin/$BASE'. The conflicted files are listed in $RUNNER_TEMP/conflicts.txt. Resolve every conflict marker (<<<<<<<, =======, >>>>>>>) by editing those files so that both the intent of this branch and the changes from the base branch are preserved. Do not run git commit, git merge or git push." 40 || true
                 while IFS= read -r f; do
-                  if [ -f "$f" ] && grep -qE '^(<<<<<<<|=======$|>>>>>>>)' "$f"; then git merge --abort || true; return 1; fi
+                  if [ -f "$f" ] && grep -qE '^(<<<<<<<|>>>>>>>)( |$)' "$f"; then git merge --abort || true; return 1; fi
                 done < "$RUNNER_TEMP/conflicts.txt"
                 while IFS= read -r f; do
                   if [ -e "$f" ]; then git add -- "$f"; else git rm -q --cached -- "$f" || true; fi
@@ -550,15 +550,21 @@ jobs:
               gitx push origin "HEAD:$BRANCH"
             }
             attempt=1
-            until { [ "$check_count" = "0" ] || gh pr checks "$PR_NUMBER" --watch --fail-fast; } \
-              && gh pr merge "$PR_NUMBER" --squash --delete-branch \
+            merged=false
+            while :; do
+              # A real CI failure is final; only a failed merge (base moved) triggers a re-sync
+              if [ "$check_count" != "0" ] && ! gh pr checks "$PR_NUMBER" --watch --fail-fast; then break; fi
+              if gh pr merge "$PR_NUMBER" --squash --delete-branch \
                 --subject "$(gh pr view "$PR_NUMBER" --json title --jq .title) (#$PR_NUMBER)" \
-                --body ""; do
-              [ "$attempt" -lt 3 ] && resync || { attempt=0; break; }
-              issue-say --body "Merge retry $attempt/3: re-synced with $BASE"
+                --body ""; then merged=true; break; fi
+              [ "$attempt" -le 2 ] && resync || break
+              issue-say --body "Merge retry $attempt/2: re-synced with $BASE"
               attempt=$((attempt + 1))
+              # Give the new commit's checks time to register before watching again
+              sleep 15
+              check_count=$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup | length')
             done
-            if [ "$attempt" != "0" ]; then
+            if [ "$merged" = "true" ]; then
               # explicit empty --body drops the auto-generated Co-authored-by trailer
               label auto-merged 0e8a16
               echo "merged=true" >> "$GITHUB_OUTPUT"
