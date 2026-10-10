@@ -4,12 +4,45 @@ import { createLimiter } from '../src/index.js';
 
 test('acquire is bounded by the limit', () => {
   const l = createLimiter({ min: 1, max: 10, start: 2 });
-  assert.equal(l.acquire(), true);
-  assert.equal(l.acquire(), true);
+  assert.ok(l.acquire());
+  assert.ok(l.acquire());
   assert.equal(l.acquire(), false);
   assert.equal(l.inFlight, 2);
   l.release(true, 10);
-  assert.equal(l.acquire(), true);
+  assert.ok(l.acquire());
+});
+
+test('release uses the token of the finished request', () => {
+  let t = 0;
+  const l = createLimiter({ min: 1, max: 100, start: 8, now: () => t });
+  const slow = l.acquire();
+  t += 1000;
+  const fast = l.acquire();
+  t += 10;
+  l.release(true, undefined, fast);
+  assert.equal(l.limit, 8);
+  l.release(true, undefined, slow);
+});
+
+test('a sustained latency shift is absorbed and growth resumes', () => {
+  const l = createLimiter({ min: 1, max: 100, start: 4 });
+  l.acquire(); l.release(true, 100);
+  for (let i = 0; i < 100; i++) { l.acquire(); l.release(true, 400); }
+  assert.ok(l.limit > 2);
+});
+
+test('a burst of simultaneous failures decreases once', () => {
+  const l = createLimiter({ min: 1, max: 100, start: 8 });
+  const ts = [];
+  for (let i = 0; i < 4; i++) ts.push(l.acquire());
+  for (const t of ts) l.release(false, undefined, t);
+  assert.equal(l.limit, 4);
+});
+
+test('invalid latency throws', () => {
+  const l = createLimiter({ min: 1, max: 4 });
+  l.acquire();
+  assert.throws(() => l.release(true, NaN), RangeError);
 });
 
 test('additive increase: one step per limit successes, capped at max', () => {
