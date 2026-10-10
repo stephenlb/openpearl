@@ -56,6 +56,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
+      # NOTE: retry-issue-to-pr.yml matches the early step names in this job
+      # (this step, checkout, setup-node, Install agent CLI); keep them in sync.
       - name: Comment that processing started
         env:
           GH_REPO: ${{ github.repository }}

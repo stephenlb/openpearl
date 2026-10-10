@@ -34,6 +34,8 @@ jobs:
           fi
           # Failures in the setup steps (e.g. GitHub secondary rate limit) happen
           # before the agent does any real work, so they are safe to retry.
+          # The step names below must stay in sync with issue-to-pr.yml
+          # (including action versions); if one is renamed, retries stop silently.
           early=$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/jobs" \
             --jq '[.jobs[] | select(.conclusion == "failure") | first(.steps[] | select(.conclusion == "failure")) | .name | select(. == "Comment that processing started" or . == "Run actions/checkout@v4" or . == "Run actions/setup-node@v4" or . == "Install agent CLI")] | length')
           if [ "$early" -eq 0 ]; then
@@ -41,5 +43,7 @@ jobs:
             exit 0
           fi
           echo "Run $RUN_ID failed in an early setup step; waiting for rate limits to cool down."
+          # Secondary rate limits typically clear within a minute or two; an
+          # immediate re-run would likely hit the same limit.
           sleep 120
           gh run rerun "$RUN_ID" --failed
