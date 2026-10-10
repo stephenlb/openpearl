@@ -29,11 +29,12 @@ When an owner, member, or collaborator opens an issue, `.github/workflows/issue-
 
 1. The agent (Claude Code by default; OpenCode, Codex, or Pi optional) implements the issue and opens a PR.
 2. The agent CLI (Claude by default) runs two review/fix rounds, confirming after each fix that every finding was addressed.
-3. The agent CLI runs the eval in `.github/workflows/evals/pr-ready-to-merge.md`.
+3. If enabled, Bash acceptance scripts run on a separate Actions runner, with custom failure feedback and a bounded fix-and-retest loop. Suites can live in a private external repository. See [Acceptance tests](#acceptance-tests).
+4. The agent CLI runs the eval in `.github/workflows/evals/pr-ready-to-merge.md`.
    - `YES`: the PR is squash-merged and the issue gets a "PR Auto-Merged: …" comment.
    - Anything else: the PR stays open for a human and the issue gets a "PR Ready for Review: …" comment.
 
-Set the `AUTO_MERGE` repo variable to `1` to always merge: the eval and all its guards (protected paths, diff size, project tests) are skipped, so even changes to workflows or auth files merge without review, and the PR is squash-merged once required checks pass. The `dry-run` label still prevents merging.
+Set the `AUTO_MERGE` repo variable to `1` to force the eval verdict: the protected-paths, diff-size and project-test guards are skipped, so even changes to workflows or auth files can merge without review. The `dry-run` label, unresolved merge conflicts, enabled acceptance checks, and required CI checks still prevent merging.
 
 To add or change evals, see [Evals](#evals).
 
@@ -83,7 +84,7 @@ PRs from forks are ignored, as are bot comments and the pipeline's own comments 
 
 ## Setup
 
-1. Copy the `.github/workflows/` directory (the workflow files and the `evals/` folder) from this repository into the root of your own project, then commit and push it. Only copy the Jira and Trello workflows if you use those integrations.
+1. Copy the `.github/workflows/` directory (the workflow files, `evals/`, and `scripts/` folders) from this repository into the root of your own project, then commit and push it. Only copy the Jira and Trello workflows if you use those integrations.
 2. Enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**.
 3. Add the secrets for one provider below under **Settings → Secrets and variables → Actions**.
 
@@ -271,6 +272,25 @@ curl -s -X POST "https://api.trello.com/1/cards" \
   --data-urlencode "token=$TRELLO_TOKEN"   # returns the new card, including its shortLink
 ```
 
+## Acceptance tests
+
+For checks broader than agent review or the existing `npm test` detection, define
+a JSON suite of Bash scripts. Scripts can run npm tests, browser automation,
+server mocks, or performance/load benchmarks. Exit codes decide pass/fail.
+
+Each check supplies a custom fallback failure message and can write a dynamic
+message to `$OPENPEARL_FEEDBACK_FILE`. The agent receives that feedback, while
+full stdout/stderr logs are retained as downloadable Actions artifacts.
+
+Set `ACCEPTANCE_ENABLED=1` to enable the gate. Tests run in a separate workflow
+against the exact candidate commit, using the default branch's suite or a separate
+repository configured with `ACCEPTANCE_REPOSITORY`. External suites are never
+checked out in the agent's workspace. Failed checks trigger a bounded fix loop
+and block merging even with `AUTO_MERGE=1`.
+
+See [the acceptance format and setup guide](acceptance/README.md) for examples,
+local execution, external/private suites, failure feedback, and retained logs.
+
 ## Evals
 
 An eval is a prompt file in `.github/workflows/evals/` that Claude runs inside `.github/workflows/issue-to-pr.yml` to make a decision. The only eval today is `pr-ready-to-merge.md`, which gates auto-merge. This section explains how to add another.
@@ -280,7 +300,7 @@ An eval is a prompt file in `.github/workflows/evals/` that Claude runs inside `
 The step **Eval - PR ready to auto-merge** in `issue-to-pr.yml`:
 
 1. Writes the issue to `$RUNNER_TEMP/issue.md` and runs a final code review into `$RUNNER_TEMP/review-final.md`. Project test results (`tests.md`) and diff stats (`diffstat.md`) are also written there as evidence.
-2. Applies deterministic guards first. The dry-run label always wins; otherwise the `AUTO_MERGE=1` repo variable forces a merge and bypasses every other guard and the eval (including the protected-paths, size and test-status checks). Without it, the guards are (dry-run label, diff touches sensitive paths such as `.github/`, auth/secrets or dependency manifests, diff larger than `MAX_DIFF_FILES`/`MAX_DIFF_LINES`, failing tests, final review not clean). If one fails, the verdict is `NO` and Claude is not called. Optional extra criteria in `.github/evals-extra.md` are appended to the eval prompt.
+2. Applies deterministic guards first. The dry-run label, unresolved merge conflicts, and enabled acceptance checks always gate merging. After those, `AUTO_MERGE=1` forces the verdict and bypasses the remaining guards and eval. Otherwise, sensitive paths (including `.github/` and `acceptance/`), diff size limits, failing project tests, and a final review that is not clean block merging. If a guard fails, the verdict is `NO` and Claude is not called. Optional extra criteria in `.github/evals-extra.md` are appended to the eval prompt.
 3. Otherwise runs `claude -p` with the eval file's contents plus the paths of the input files.
 4. Reads the last non-empty line of the output. Only exactly `YES` passes; anything else, including a failed command, counts as `NO` (fail closed).
 5. Posts the output as a PR comment and acts on the verdict.

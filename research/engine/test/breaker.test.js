@@ -127,6 +127,35 @@ test('rejection is a BreakerOpenError', async () => {
   await assert.rejects(breaker.call(ok), BreakerOpenError);
 });
 
+test('reset() ignores results of calls started before it', async () => {
+  const { breaker } = setup();
+  let rejectPending;
+  const pending = breaker.call(() => new Promise((_, rej) => { rejectPending = rej; }));
+  breaker.reset();
+  rejectPending(new Error('late'));
+  await assert.rejects(pending, /late/);
+  await failTimes(breaker, 2);
+  assert.equal(breaker.state(), 'closed');
+});
+
+test('reset() during a probe does not allow a third concurrent probe', async () => {
+  const { breaker, advance } = setup();
+  await failTimes(breaker, 3);
+  advance(100);
+  let release1;
+  const p1 = breaker.call(() => new Promise((r) => { release1 = r; }));
+  breaker.reset();
+  await failTimes(breaker, 3);
+  advance(100);
+  let release2;
+  const p2 = breaker.call(() => new Promise((r) => { release2 = r; }));
+  release1('a');
+  await p1;
+  await assert.rejects(breaker.call(ok), BreakerOpenError);
+  release2('b');
+  await p2;
+});
+
 test('synchronously throwing fn counts as a failure', async () => {
   const { breaker } = setup();
   const boom = () => { throw new Error('sync'); };

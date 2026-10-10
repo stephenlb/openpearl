@@ -1,0 +1,16 @@
+{
+  "scenarios": [
+    { "name": "baseline-low", "description": "Light background failures", "failRate": 0.05, "latencySpikes": { "probability": 0, "ms": 0 }, "corruptStateRate": 0 },
+    { "name": "steady-10", "description": "Steady 10% failures", "failRate": 0.1, "latencySpikes": { "probability": 0, "ms": 0 }, "corruptStateRate": 0 },
+    { "name": "steady-20", "description": "Steady 20% failures", "failRate": 0.2, "latencySpikes": { "probability": 0, "ms": 0 }, "corruptStateRate": 0 },
+    { "name": "steady-35", "description": "Steady 35% failures", "failRate": 0.35, "latencySpikes": { "probability": 0, "ms": 0 }, "corruptStateRate": 0 },
+    { "name": "heavy-60", "description": "Severe 60% failures", "failRate": 0.6, "latencySpikes": { "probability": 0, "ms": 0 }, "corruptStateRate": 0 },
+    { "name": "spiky-latency", "description": "Low failures with occasional latency spikes", "failRate": 0.05, "latencySpikes": { "probability": 0.1, "ms": 500 }, "corruptStateRate": 0 },
+    { "name": "spiky-latency-heavy", "description": "Frequent large latency spikes", "failRate": 0.15, "latencySpikes": { "probability": 0.3, "ms": 2000 }, "corruptStateRate": 0 },
+    { "name": "flaky-and-slow", "description": "Mixed failures and latency spikes", "failRate": 0.3, "latencySpikes": { "probability": 0.2, "ms": 1000 }, "corruptStateRate": 0 },
+    { "name": "corrupt-light", "description": "Rare corrupt checkpoint state", "failRate": 0.05, "latencySpikes": { "probability": 0, "ms": 0 }, "corruptStateRate": 0.05 },
+    { "name": "corrupt-moderate", "description": "Moderate failures with corrupt state", "failRate": 0.15, "latencySpikes": { "probability": 0, "ms": 0 }, "corruptStateRate": 0.2 },
+    { "name": "corrupt-and-slow", "description": "Corrupt state plus latency spikes", "failRate": 0.25, "latencySpikes": { "probability": 0.15, "ms": 800 }, "corruptStateRate": 0.15 },
+    { "name": "worst-case", "description": "Everything goes wrong at once", "failRate": 0.6, "latencySpikes": { "probability": 0.3, "ms": 2000 }, "corruptStateRate": 0.3 }
+  ]
+}

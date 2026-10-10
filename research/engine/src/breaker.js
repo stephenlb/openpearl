@@ -11,7 +11,9 @@ export class BreakerOpenError extends Error {
 export function createBreaker({ threshold = 5, cooldownMs = 30000, now = Date.now } = {}) {
   let failures = 0;
   let openedAt = null;
-  let probing = false;
+  // Token of the in-flight half-open probe, if any; reset() drops it so a
+  // stale probe can't clear a newer probe's claim.
+  let probe = null;
   // Bumped whenever the breaker trips or closes, so results of calls that
   // started before the change are ignored.
   let epoch = 0;
@@ -29,11 +31,12 @@ export function createBreaker({ threshold = 5, cooldownMs = 30000, now = Date.no
 
   async function call(fn) {
     const current = state();
-    if (current === 'open' || (current === 'half-open' && probing)) {
+    if (current === 'open' || (current === 'half-open' && probe !== null)) {
       throw new BreakerOpenError();
     }
     const isProbe = current === 'half-open';
-    if (isProbe) probing = true;
+    const token = isProbe ? Symbol('probe') : null;
+    if (isProbe) probe = token;
     const startEpoch = epoch;
     try {
       const result = await fn();
@@ -50,9 +53,17 @@ export function createBreaker({ threshold = 5, cooldownMs = 30000, now = Date.no
       }
       throw err;
     } finally {
-      if (isProbe) probing = false;
+      if (isProbe && probe === token) probe = null;
     }
   }
 
-  return { call, state };
+  // Forces the breaker closed (used by self-heal); in-flight calls are ignored.
+  function reset() {
+    failures = 0;
+    openedAt = null;
+    probe = null;
+    epoch++;
+  }
+
+  return { call, state, reset };
 }
