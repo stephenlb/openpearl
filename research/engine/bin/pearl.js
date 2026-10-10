@@ -2,9 +2,9 @@
 // pearl CLI. Exit codes: 0 = ok, 1 = invalid input (bad config), 2 = usage error.
 import { readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { loadConfig } from '../src/index.js';
+import { loadConfig, loadScenarios, getScenario } from '../src/index.js';
 
-const USAGE = 'Usage: pearl <version|health|config <json>>';
+const USAGE = 'Usage: pearl <version|health|config <json>|scenarios [name]>';
 
 export function run(argv) {
   const [cmd, ...rest] = argv;
@@ -25,6 +25,14 @@ export function run(argv) {
       }
       try {
         return { code: 0, out: JSON.stringify(loadConfig(input)) };
+      } catch (e) {
+        return { code: 1, err: e.message };
+      }
+    }
+    case 'scenarios': {
+      if (rest.length > 1) return { code: 2, err: `scenarios takes at most one name\n${USAGE}` };
+      try {
+        return { code: 0, out: JSON.stringify(rest.length ? getScenario(rest[0]) : loadScenarios()) };
       } catch (e) {
         return { code: 1, err: e.message };
       }
