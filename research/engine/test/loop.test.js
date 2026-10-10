@@ -25,12 +25,25 @@ test('runs a full cycle over fixture events', () => {
   const ledger = createLedger({ clock: () => 1 });
   const out = runImprovementCycle({ events, learner: createLearner(), ledger });
   assert.equal(out.drafts.length, 1);
-  assert.match(out.drafts[0].title, /timeout after <n>00ms/);
+  assert.match(out.drafts[0].title, /timeout after <n>ms/);
   assert.deepEqual(out.ranked.map((r) => r.strategy), ['fallback', 'retry']);
   assert.equal(out.ranked[1].attempts, 4);
   assert.equal(out.summary.count, 2);
   assert.equal(out.summary.wins, 1);
   assert.equal(out.summary.regressions.length, 1);
+});
+
+test('skips incomplete ledger events and handles failing strategy events', () => {
+  const out = runImprovementCycle({
+    events: [
+      { change: 'half', metricBefore: 0.5 },
+      { strategy: 'retry', success: false, costMs: 5 },
+    ],
+    learner: createLearner(),
+    ledger: createLedger(),
+  });
+  assert.equal(out.summary.count, 0);
+  assert.equal(out.ranked[0].attempts, 1);
 });
 
 test('respects minCount and validates inputs', () => {

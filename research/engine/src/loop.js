@@ -21,7 +21,7 @@ export function runImprovementCycle({ events, learner, ledger, minCount } = {}) 
       if (!strategies.includes(ev.strategy)) strategies.push(ev.strategy);
       learner.record({ strategy: ev.strategy, success: ev.success, costMs: ev.costMs });
     }
-    if (ev?.change !== undefined && ev.metricBefore !== undefined) {
+    if (ev?.change !== undefined && ev.metricBefore !== undefined && ev.metricAfter !== undefined) {
       ledger.record(ev.change, ev.metricBefore, ev.metricAfter);
     }
     if (ev?.success === false || ev?.error !== undefined) failures.push(ev);
