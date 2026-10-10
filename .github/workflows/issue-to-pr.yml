@@ -8,6 +8,7 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
+  actions: write
 
 concurrency:
   group: issue-to-pr-${{ github.event.issue.number }}
@@ -38,8 +39,10 @@ env:
   REVIEW_ROUNDS: ${{ vars.REVIEW_ROUNDS || '2' }}
   MAX_DIFF_LINES: ${{ vars.MAX_DIFF_LINES || '500' }}
   MAX_DIFF_FILES: ${{ vars.MAX_DIFF_FILES || '20' }}
-  # Set the AUTO_MERGE repo variable to 1 to always merge, skipping the eval and guards (dry-run still wins)
+  # Force the eval verdict; dry-run, merge conflicts and acceptance failures still block merging.
   AUTO_MERGE: ${{ vars.AUTO_MERGE }}
+  ACCEPTANCE_ENABLED: ${{ vars.ACCEPTANCE_ENABLED }}
+  ACCEPTANCE_FIX_ROUNDS: ${{ vars.ACCEPTANCE_FIX_ROUNDS || '1' }}
   # Label an issue with "dry-run" to open the PR but never auto-merge it
   DRY_RUN: ${{ contains(github.event.issue.labels.*.name, 'dry-run') }}
   # Hidden marker on pipeline PR comments so pr-comment-chat.yml ignores them
@@ -97,6 +100,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Preserve acceptance dispatcher from trusted base
+        if: env.ACCEPTANCE_ENABLED == '1'
+        run: |
+          cp .github/workflows/scripts/acceptance-dispatch.sh "$RUNNER_TEMP/acceptance-dispatch.sh"
 
       - name: Install agent CLI
         run: |
@@ -428,6 +436,51 @@ jobs:
           $MARKER"
           issue-say --body "Merge conflicts with \`$BASE\` resolved and pushed."
 
+      - name: Acceptance tests and fixes
+        if: steps.commit.outputs.changed == 'true' && env.ACCEPTANCE_ENABLED == '1'
+        id: acceptance
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          [[ "$ACCEPTANCE_FIX_ROUNDS" =~ ^[0-3]$ ]] || ACCEPTANCE_FIX_ROUNDS=1
+          status=fail
+          for attempt in $(seq 0 "$ACCEPTANCE_FIX_ROUNDS"); do
+            sha=$(git rev-parse HEAD)
+            result="$RUNNER_TEMP/acceptance-$attempt"
+            request="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$attempt"
+            if bash "$RUNNER_TEMP/acceptance-dispatch.sh" "$sha" "$request" "$result"; then
+              status=pass
+            fi
+            if [ ! -s "$result/feedback.md" ]; then
+              mkdir -p "$result"
+              printf 'Acceptance infrastructure failed. See the Actions run; no passing result was received.\n' > "$result/feedback.md"
+            fi
+            gh pr comment "$PR_NUMBER" --body-file - <<EOF
+          $(cat "$result/feedback.md")
+
+          Candidate: \`$sha\`. Full logs are retained in the acceptance workflow's \`acceptance-logs\` artifact.
+
+          $MARKER
+          EOF
+            [ "$status" != pass ] || break
+            [ "$attempt" -lt "$ACCEPTANCE_FIX_ROUNDS" ] || break
+            # Only failed test results are actionable; do not ask the agent to fix infrastructure failures.
+            [ -s "$result/result.json" ] || break
+            python3 - "$result/result.json" <<'PY' || break
+          import json, sys
+          report = json.load(open(sys.argv[1]))
+          tests = report.get("tests", [])
+          sys.exit(0 if report.get("status") == "fail" and any(t.get("status") == "fail" for t in tests) and not any(t.get("status") == "error" for t in tests) else 1)
+          PY
+            agent-retry edit "$GUIDANCE Acceptance tests failed for this candidate. Read $result/feedback.md and fix the application to meet the requirements. The suite is maintained independently; do not change tests or acceptance configuration. Do not run git commit or git push." 40
+            if [ -n "$(git status --porcelain)" ]; then
+              git add -A
+              git commit -m "Address acceptance feedback (round $((attempt + 1)))"
+              git push
+            fi
+          done
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
       - name: Summarize completed work
         if: steps.commit.outputs.changed == 'true'
         run: |
@@ -473,6 +526,7 @@ jobs:
           PR_NUMBER: ${{ steps.pr.outputs.number }}
           TEST_STATUS: ${{ steps.tests.outputs.status }}
           MERGE_UNRESOLVED: ${{ steps.merge.outputs.unresolved }}
+          ACCEPTANCE_STATUS: ${{ steps.acceptance.outputs.status }}
         run: |
           issue-say --body "Running final eval to decide whether PR $PR_URL is safe to auto-merge..."
           # Evidence for the eval: diff stats and real test results
@@ -490,7 +544,7 @@ jobs:
           # Deterministic guard: never auto-merge changes to workflows, auth/secrets, or dependency manifests
           protected=$(git diff --name-only "origin/$BASE...HEAD" \
             | grep -Eiv '(^|/)node_modules/' \
-            | grep -Ei '^\.github/|(^|/)(auth|secrets?|credentials?)([/._-]|$)|(^|/)\.env|(^|/)(package(-lock)?\.json|yarn\.lock|pnpm-lock\.yaml|requirements[^/]*\.txt|Pipfile(\.lock)?|poetry\.lock|go\.(mod|sum)|Cargo\.(toml|lock)|Gemfile(\.lock)?|pom\.xml|build\.gradle)$' || true)
+            | grep -Ei '^\.github/|^acceptance/|(^|/)(auth|secrets?|credentials?)([/._-]|$)|(^|/)\.env|(^|/)(package(-lock)?\.json|yarn\.lock|pnpm-lock\.yaml|requirements[^/]*\.txt|Pipfile(\.lock)?|poetry\.lock|go\.(mod|sum)|Cargo\.(toml|lock)|Gemfile(\.lock)?|pom\.xml|build\.gradle)$' || true)
           # Deterministic guard: large diffs need a human
           diff_files=$(git diff --name-only "origin/$BASE...HEAD" | wc -l)
           diff_lines=$(git diff --numstat "origin/$BASE...HEAD" | awk '{ if ($1 != "-") n += $1 + $2 } END { print n + 0 }')
@@ -504,6 +558,8 @@ jobs:
             echo "Auto-merge skipped: dry-run label is set" > "$RUNNER_TEMP/eval.md"
           elif [ "$MERGE_UNRESOLVED" = "true" ]; then
             echo "Auto-merge blocked: unresolved merge conflicts with $BASE" > "$RUNNER_TEMP/eval.md"
+          elif [ "$ACCEPTANCE_ENABLED" = "1" ] && [ "$ACCEPTANCE_STATUS" != "pass" ]; then
+            echo "Auto-merge blocked: acceptance tests did not pass" > "$RUNNER_TEMP/eval.md"
           elif [ "$AUTO_MERGE" = "1" ]; then
             echo "Auto-merge forced: AUTO_MERGE=1 (eval and guards skipped)" > "$RUNNER_TEMP/eval.md"
             verdict=YES
@@ -522,6 +578,7 @@ jobs:
           Issue file: $RUNNER_TEMP/task.md
           Review files: $RUNNER_TEMP/review-*.md (review-final.md is the review of the fixed code and takes precedence)
           Test results file: $RUNNER_TEMP/tests.md (test status: $TEST_STATUS)
+          Acceptance status: ${ACCEPTANCE_STATUS:-disabled} (deterministic script results)
           Diff stats file: $RUNNER_TEMP/diffstat.md" 20 > "$RUNNER_TEMP/eval.md"; then
             # Fail closed: only a final line of exactly YES (surrounding whitespace ignored) merges
             last=$(grep -v '^[[:space:]]*$' "$RUNNER_TEMP/eval.md" | tail -n 1 | tr -d '[:space:]')
@@ -645,6 +702,10 @@ jobs:
           ### Tests
 
           ${{ steps.tests.outputs.status || 'not run' }}
+
+          ### Acceptance tests
+
+          ${{ steps.acceptance.outputs.status || 'disabled' }}
           EOF
 
       - name: Report failure

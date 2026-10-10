@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "tests": [
+    {
+      "name": "Application tests",
+      "script": "scripts/tests.sh",
+      "timeout_seconds": 300,
+      "feedback": "Application tests failed. Investigate the behavior introduced by your changes."
+    },
+    {
+      "name": "Load budget",
+      "script": "scripts/load.sh",
+      "timeout_seconds": 600,
+      "feedback": "The application did not meet its latency budget under concurrent load. Investigate request handling and resource use."
+    }
+  ]
+}
