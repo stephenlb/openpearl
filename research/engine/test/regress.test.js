@@ -34,7 +34,7 @@ test('output parses and fails until reproduce() is implemented', () => {
     assert.notEqual(run.status, 0);
     assert.match(run.stdout + run.stderr, /reproduce\(\) not implemented/);
     const filled = readFileSync(file, 'utf8').replace(
-      "assert.fail('reproduce() not implemented');",
+      'throw NOT_IMPLEMENTED;',
       'throw Object.assign(new TypeError(expected.message), { code: expected.code });',
     );
     writeFileSync(file, filled);
