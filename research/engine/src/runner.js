@@ -7,7 +7,7 @@ const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // `TypeError` (e.g. undici's `fetch failed`) may wrap a transient failure.
 function isFatal(err) {
   const probe = err !== null && typeof err === 'object'
-    ? { name: 'Error', message: err.message, code: err.code, cause: err.cause }
+    ? { name: err.name === 'BreakerOpenError' ? err.name : 'Error', message: err.message, code: err.code, cause: err.cause }
     : err;
   const { class: kind, retryable } = classifyError(probe);
   return !retryable && kind !== 'unknown';
