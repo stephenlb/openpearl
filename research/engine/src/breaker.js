@@ -54,5 +54,13 @@ export function createBreaker({ threshold = 5, cooldownMs = 30000, now = Date.no
     }
   }
 
-  return { call, state };
+  // Forces the breaker closed (used by self-heal); in-flight calls are ignored.
+  function reset() {
+    failures = 0;
+    openedAt = null;
+    probing = false;
+    epoch++;
+  }
+
+  return { call, state, reset };
 }

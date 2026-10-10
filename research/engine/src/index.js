@@ -11,4 +11,5 @@ export { seededRng } from './rng.js';
 export { createChaos, ChaosError } from './chaos.js';
 export { createWatchdog } from './watchdog.js';
 export { createCheckpointStore } from './checkpoint.js';
+export { createPlaybook, DEFAULT_RULES, REMEDIES } from './playbook.js';
 export { repairJSONL, repairCheckpoint } from './repair.js';
