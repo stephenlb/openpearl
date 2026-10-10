@@ -28,7 +28,7 @@ test('golden postmortem output', () => {
     '',
     '## MTTR',
     '',
-    '750ms (2 recovered)',
+    '750ms (2 recovered, 1 unresolved)',
     '',
     '## Affected jobs',
     '',
