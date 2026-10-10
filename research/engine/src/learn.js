@@ -12,25 +12,27 @@ export function wilsonLowerBound(successes, n, z = Z95) {
 }
 
 export function createLearner() {
-  const data = new Map(); // strategy -> { attempts, successes, totalCost, contexts }
+  const data = new Map(); // strategy -> { attempts, successes, totalCost }
 
   return {
-    record({ strategy, context, success, costMs = 0 } = {}) {
+    record({ strategy, success, costMs = 0 } = {}) {
       if (typeof strategy !== 'string' || strategy === '') {
         throw new TypeError('strategy must be a non-empty string');
+      }
+      if (typeof success !== 'boolean') {
+        throw new TypeError('success must be a boolean');
       }
       if (!Number.isFinite(costMs) || costMs < 0) {
         throw new RangeError('costMs must be a non-negative number');
       }
       let entry = data.get(strategy);
       if (!entry) {
-        entry = { attempts: 0, successes: 0, totalCost: 0, contexts: [] };
+        entry = { attempts: 0, successes: 0, totalCost: 0 };
         data.set(strategy, entry);
       }
       entry.attempts += 1;
       if (success) entry.successes += 1;
       entry.totalCost += costMs;
-      entry.contexts.push(context);
     },
     stats(strategy) {
       const e = data.get(strategy);

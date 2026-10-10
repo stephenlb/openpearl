@@ -39,4 +39,14 @@ test('rejects invalid input', () => {
   const l = createLearner();
   assert.throws(() => l.record({ success: true }), TypeError);
   assert.throws(() => l.record({ strategy: 'a', success: true, costMs: -1 }), RangeError);
+  assert.throws(() => l.record({ strategy: 'a', success: 'false' }), TypeError);
+  assert.throws(() => l.record({ strategy: 'a' }), TypeError);
+  assert.throws(() => l.record({ strategy: 'a', success: true, costMs: NaN }), RangeError);
+  assert.throws(() => l.record({ strategy: 'a', success: true, costMs: Infinity }), RangeError);
+});
+
+test('context is accepted but not retained', () => {
+  const l = createLearner();
+  l.record({ strategy: 'a', context: { big: 1 }, success: true });
+  assert.equal(l.stats('a').attempts, 1);
 });
