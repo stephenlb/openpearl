@@ -15,12 +15,21 @@ export function createWatchdog({ timeoutMs, now = Date.now, onStall = () => {} }
     check() {
       const t = now();
       const stalled = [];
+      const fresh = [];
       for (const [id, entry] of entries) {
         if (t - entry.last <= timeoutMs) continue;
         stalled.push(id);
         if (!entry.stalled) {
           entry.stalled = true;
+          fresh.push(id);
+        }
+      }
+      // A throwing onStall must not stop other ids from being reported.
+      for (const id of fresh) {
+        try {
           onStall(id);
+        } catch {
+          // ignored: check() still returns the stalled ids
         }
       }
       return stalled;

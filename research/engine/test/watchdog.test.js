@@ -50,6 +50,24 @@ test('remove stops tracking an id', () => {
   assert.deepEqual(wd.check(), []);
 });
 
+test('a throwing onStall does not break check', () => {
+  const clock = { t: 0 };
+  const seen = [];
+  const wd = createWatchdog({
+    timeoutMs: 100,
+    now: () => clock.t,
+    onStall: (id) => {
+      seen.push(id);
+      if (id === 'a') throw new Error('boom');
+    },
+  });
+  wd.heartbeat('a');
+  wd.heartbeat('b');
+  clock.t = 200;
+  assert.deepEqual(wd.check(), ['a', 'b']);
+  assert.deepEqual(seen, ['a', 'b']);
+});
+
 test('rejects invalid timeoutMs', () => {
   assert.throws(() => createWatchdog({ timeoutMs: 0 }), RangeError);
   assert.throws(() => createWatchdog({}), RangeError);
