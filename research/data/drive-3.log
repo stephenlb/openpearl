@@ -1,0 +1,44 @@
+created {'n': 30, 'issue': 208, 'url': 'https://github.com/stephenlb/openpearl/issues/208', 'title': 'Add feedback loop orchestrator', 'phase': 'improve', 'kind': 'normal', 'created_at': 1791601544.8088698}
+created {'n': 31, 'issue': 209, 'url': 'https://github.com/stephenlb/openpearl/issues/209', 'title': 'Add adaptive timeout estimator', 'phase': 'optimize', 'kind': 'normal', 'created_at': 1791601545.8817952}
+finished 209 138s
+finished 208 320s
+created {'n': 32, 'issue': 212, 'url': 'https://github.com/stephenlb/openpearl/issues/212', 'title': 'Add adaptive concurrency limiter', 'phase': 'optimize', 'kind': 'normal', 'created_at': 1791601887.155741}
+created {'n': 33, 'issue': 213, 'url': 'https://github.com/stephenlb/openpearl/issues/213', 'title': 'Add TTL cache with adaptive TTL', 'phase': 'optimize', 'kind': 'normal', 'created_at': 1791601888.1058402}
+finished 212 276s
+finished 213 413s
+created {'n': 34, 'issue': 216, 'url': 'https://github.com/stephenlb/openpearl/issues/216', 'title': 'Add micro-benchmark harness', 'phase': 'optimize', 'kind': 'normal', 'created_at': 1791602321.887244}
+created {'n': 35, 'issue': 217, 'url': 'https://github.com/stephenlb/openpearl/issues/217', 'title': 'Add auto-tuner hill climber', 'phase': 'optimize', 'kind': 'normal', 'created_at': 1791602322.976369}
+finished 216 138s
+finished 217 229s
+created {'n': 36, 'issue': 220, 'url': 'https://github.com/stephenlb/openpearl/issues/220', 'title': 'Add batching queue', 'phase': 'optimize', 'kind': 'normal', 'created_at': 1791602573.608396}
+created {'n': 37, 'issue': 221, 'url': 'https://github.com/stephenlb/openpearl/issues/221', 'title': 'Add load shedder', 'phase': 'optimize', 'kind': 'normal', 'created_at': 1791602574.624892}
+finished 220 230s
+finished 221 322s
+created {'n': 38, 'issue': 224, 'url': 'https://github.com/stephenlb/openpearl/issues/224', 'title': 'Add cost budget tracker', 'phase': 'optimize', 'kind': 'normal', 'created_at': 1791602918.283208}
+created {'n': 39, 'issue': 225, 'url': 'https://github.com/stephenlb/openpearl/issues/225', 'title': 'Add profiler for task stages', 'phase': 'optimize', 'kind': 'normal', 'created_at': 1791602919.243801}
+finished 225 138s
+finished 224 275s
+created {'n': 40, 'issue': 228, 'url': 'https://github.com/stephenlb/openpearl/issues/228', 'title': 'Add self-optimizing pipeline facade', 'phase': 'optimize', 'kind': 'normal', 'created_at': 1791603215.211187}
+finished 228 365s
+created {'n': 41, 'issue': 230, 'url': 'https://github.com/stephenlb/openpearl/issues/230', 'title': 'Add simulation runner', 'phase': 'measure', 'kind': 'normal', 'created_at': 1791603600.845738}
+created {'n': 42, 'issue': 231, 'url': 'https://github.com/stephenlb/openpearl/issues/231', 'title': 'Add scorecard', 'phase': 'measure', 'kind': 'normal', 'created_at': 1791603601.881432}
+finished 231 138s
+finished 230 322s
+created {'n': 43, 'issue': 234, 'url': 'https://github.com/stephenlb/openpearl/issues/234', 'title': 'Add SVG chart helper', 'phase': 'measure', 'kind': 'normal', 'created_at': 1791603944.432291}
+created {'n': 44, 'issue': 235, 'url': 'https://github.com/stephenlb/openpearl/issues/235', 'title': 'Add benchmark scenarios file', 'phase': 'measure', 'kind': 'normal', 'created_at': 1791603945.31967}
+finished 235 231s
+Traceback (most recent call last):
+  File "/Users/stephen/Projects/openperl/research/harness/drive.py", line 46, in <module>
+    if done(n): pending.discard(n); print("finished", n, f"{time.time()-t0:.0f}s", flush=True)
+       ~~~~^^^
+  File "/Users/stephen/Projects/openperl/research/harness/drive.py", line 30, in done
+    j = json.loads(sh("gh", "issue", "view", str(num), "--json", "state,comments").stdout)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)

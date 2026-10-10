@@ -1,0 +1,53 @@
+created {'n': 2, 'issue': 144, 'url': 'https://github.com/stephenlb/openpearl/issues/144', 'title': 'Add task runner with retries', 'phase': 'core', 'kind': 'normal', 'created_at': 1791594721.550909}
+created {'n': 3, 'issue': 145, 'url': 'https://github.com/stephenlb/openpearl/issues/145', 'title': 'Add exponential backoff with jitter', 'phase': 'core', 'kind': 'normal', 'created_at': 1791594722.5462499}
+created {'n': 4, 'issue': 146, 'url': 'https://github.com/stephenlb/openpearl/issues/146', 'title': 'Add circuit breaker', 'phase': 'core', 'kind': 'normal', 'created_at': 1791594723.604015}
+finished 146 187s
+finished 144 232s
+finished 145 278s
+created {'n': 5, 'issue': 150, 'url': 'https://github.com/stephenlb/openpearl/issues/150', 'title': 'Add metrics recorder', 'phase': 'core', 'kind': 'normal', 'created_at': 1791595022.936084}
+created {'n': 6, 'issue': 151, 'url': 'https://github.com/stephenlb/openpearl/issues/151', 'title': 'Add structured event log', 'phase': 'core', 'kind': 'normal', 'created_at': 1791595023.991217}
+created {'n': 7, 'issue': 152, 'url': 'https://github.com/stephenlb/openpearl/issues/152', 'title': 'Add config loader with validation', 'phase': 'core', 'kind': 'normal', 'created_at': 1791595024.9859}
+finished 150 139s
+finished 152 232s
+finished 151 278s
+created {'n': 8, 'issue': 156, 'url': 'https://github.com/stephenlb/openpearl/issues/156', 'title': 'Add timeout wrapper', 'phase': 'core', 'kind': 'normal', 'created_at': 1791595323.729294}
+created {'n': 9, 'issue': 157, 'url': 'https://github.com/stephenlb/openpearl/issues/157', 'title': 'Add health check module', 'phase': 'core', 'kind': 'normal', 'created_at': 1791595324.6078138}
+created {'n': 10, 'issue': 158, 'url': 'https://github.com/stephenlb/openpearl/issues/158', 'title': 'Add CLI entry', 'phase': 'core', 'kind': 'normal', 'created_at': 1791595325.525325}
+finished 156 139s
+finished 157 231s
+finished 158 232s
+created {'n': 11, 'issue': 162, 'url': 'https://github.com/stephenlb/openpearl/issues/162', 'title': 'Add fault injector', 'phase': 'heal', 'kind': 'normal', 'created_at': 1791595578.613409}
+created {'n': 12, 'issue': 163, 'url': 'https://github.com/stephenlb/openpearl/issues/163', 'title': 'Add failure classifier', 'phase': 'heal', 'kind': 'normal', 'created_at': 1791595579.550932}
+finished 162 138s
+finished 163 229s
+created {'n': 13, 'issue': 166, 'url': 'https://github.com/stephenlb/openpearl/issues/166', 'title': 'Make runner retry only retryable errors', 'phase': 'heal', 'kind': 'normal', 'created_at': 1791595829.956628}
+created {'n': 14, 'issue': 167, 'url': 'https://github.com/stephenlb/openpearl/issues/167', 'title': 'Add watchdog', 'phase': 'heal', 'kind': 'normal', 'created_at': 1791595830.951149}
+created {'n': 15, 'issue': 168, 'url': 'https://github.com/stephenlb/openpearl/issues/168', 'title': 'Add checkpoint store', 'phase': 'heal', 'kind': 'normal', 'created_at': 1791595831.8876631}
+finished 168 139s
+finished 166 232s
+finished 167 233s
+created {'n': 16, 'issue': 172, 'url': 'https://github.com/stephenlb/openpearl/issues/172', 'title': 'Add crash recovery', 'phase': 'heal', 'kind': 'normal', 'created_at': 1791596085.530514}
+created {'n': 17, 'issue': 173, 'url': 'https://github.com/stephenlb/openpearl/issues/173', 'title': 'Add dead-letter queue', 'phase': 'heal', 'kind': 'normal', 'created_at': 1791596086.57258}
+created {'n': 18, 'issue': 174, 'url': 'https://github.com/stephenlb/openpearl/issues/174', 'title': 'Add corrupt state repair', 'phase': 'heal', 'kind': 'normal', 'created_at': 1791596087.5276392}
+finished 172 139s
+finished 173 139s
+finished 174 140s
+created {'n': 19, 'issue': 178, 'url': 'https://github.com/stephenlb/openpearl/issues/178', 'title': 'Add degraded-mode controller', 'phase': 'heal', 'kind': 'normal', 'created_at': 1791596248.117087}
+created {'n': 20, 'issue': 179, 'url': 'https://github.com/stephenlb/openpearl/issues/179', 'title': 'Add self-heal playbook engine', 'phase': 'heal', 'kind': 'normal', 'created_at': 1791596249.0596638}
+finished 178 230s
+finished 179 276s
+created {'n': 21, 'issue': 182, 'url': 'https://github.com/stephenlb/openpearl/issues/182', 'title': 'Add outcome learning store', 'phase': 'improve', 'kind': 'normal', 'created_at': 1791596546.072212}
+created {'n': 22, 'issue': 183, 'url': 'https://github.com/stephenlb/openpearl/issues/183', 'title': 'Add strategy scoring and selection', 'phase': 'improve', 'kind': 'normal', 'created_at': 1791596547.120259}
+created {'n': 23, 'issue': 184, 'url': 'https://github.com/stephenlb/openpearl/issues/184', 'title': 'Add postmortem generator', 'phase': 'improve', 'kind': 'normal', 'created_at': 1791596548.0794492}
+finished 183 140s
+finished 184 232s
+finished 182 232s
+created {'n': 24, 'issue': 190, 'url': 'https://github.com/stephenlb/openpearl/issues/190', 'title': 'Add issue draft generator from failures', 'phase': 'improve', 'kind': 'normal', 'created_at': 1791596801.3467038}
+created {'n': 25, 'issue': 191, 'url': 'https://github.com/stephenlb/openpearl/issues/191', 'title': 'Add regression test generator', 'phase': 'improve', 'kind': 'normal', 'created_at': 1791596802.405184}
+created {'n': 26, 'issue': 192, 'url': 'https://github.com/stephenlb/openpearl/issues/192', 'title': 'Add A/B comparison utility', 'phase': 'improve', 'kind': 'normal', 'created_at': 1791596803.310742}
+finished 192 185s
+finished 190 278s
+finished 191 324s
+created {'n': 27, 'issue': 198, 'url': 'https://github.com/stephenlb/openpearl/issues/198', 'title': 'Add bandit strategy selector', 'phase': 'improve', 'kind': 'normal', 'created_at': 1791597148.1291342}
+created {'n': 28, 'issue': 199, 'url': 'https://github.com/stephenlb/openpearl/issues/199', 'title': 'Add improvement ledger', 'phase': 'improve', 'kind': 'normal', 'created_at': 1791597149.099638}
+created {'n': 29, 'issue': 200, 'url': 'https://github.com/stephenlb/openpearl/issues/200', 'title': 'Add code quality metrics collector', 'phase': 'improve', 'kind': 'normal', 'created_at': 1791597150.113187}

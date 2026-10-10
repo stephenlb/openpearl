@@ -1,0 +1,74 @@
+name: Main watchdog
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: main-watchdog
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ secrets.PUSH_TOKEN || github.token }}
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run tests
+        id: test
+        run: |
+          if npm test > test-output.txt 2>&1; then
+            echo "passed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "passed=false" >> "$GITHUB_OUTPUT"
+          fi
+          tail -n 60 test-output.txt
+      - name: Open or close main-red issue
+        env:
+          PASSED: ${{ steps.test.outputs.passed }}
+          SHA: ${{ github.sha }}
+        run: |
+          short=$(echo "$SHA" | cut -c1-7)
+          url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$SHA"
+          open=$(gh issue list --label main-red --state open --json number --jq '.[0].number // empty')
+          if [ "$PASSED" = "true" ]; then
+            if [ -n "$open" ]; then
+              gh issue comment "$open" --body "main is green again at $short"
+              gh issue close "$open"
+            fi
+            exit 0
+          fi
+          if [ -n "$open" ]; then
+            {
+              echo "Still red at \`$SHA\` ($url)"
+              echo
+              echo '```'
+              tail -n 60 test-output.txt
+              echo '```'
+            } > comment.md
+            gh issue comment "$open" --body-file comment.md
+            exit 0
+          fi
+          gh label create main-red --description "main is failing npm test" --color B60205 || true
+          name=$(grep -E '^\s*(not ok|✖|×)' test-output.txt | grep -viE '(failing tests|tests? failed):?\s*$' | head -n1 | sed -E 's/^\s*(not ok [0-9]+ -?|✖|×)\s*//' | cut -c1-80 || true)
+          [ -n "$name" ] || name="npm test failed"
+          {
+            echo "Commit: \`$SHA\` ($url)"
+            echo
+            echo '```'
+            tail -n 60 test-output.txt
+            echo '```'
+            echo
+            echo "Task: Find the root cause of the failing test(s), fix the code if it is a real bug or the test if the test is wrong, touch only the files needed, and leave \`npm test\` green."
+          } > body.md
+          gh issue create --label main-red --title "[watchdog] main is red: $name ($short)" --body-file body.md

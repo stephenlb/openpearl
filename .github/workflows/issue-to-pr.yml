@@ -56,13 +56,38 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
+      # NOTE: retry-issue-to-pr.yml matches the early step names in this job
+      # (this step, checkout, setup-node, Install agent CLI); keep them in sync.
       - name: Comment that processing started
         env:
           GH_REPO: ${{ github.repository }}
         run: |
+          # Usage: gh_retry <command...> (stdin is buffered and replayed on each attempt)
+          # Retries only rate-limit errors (secondary rate limit, HTTP 429), not 403 permission errors or 502/503 (which may have already created the comment)
+          # with 20s, 40s, 80s, 160s, 240s backoff; any other failure is returned immediately.
+          mkdir -p "$RUNNER_TEMP/bin"
+          cat > "$RUNNER_TEMP/bin/gh_retry" <<'SCRIPT'
+          #!/usr/bin/env bash
+          in=$(mktemp) err=$(mktemp)
+          trap 'rm -f "$in" "$err"' EXIT
+          cat > "$in"
+          for attempt in 1 2 3 4 5 6; do
+            "$@" < "$in" 2> "$err" && { cat "$err" >&2; exit 0; }
+            rc=$?
+            cat "$err" >&2
+            grep -qiE 'too quickly|secondary rate limit|abuse|HTTP 429' "$err" || exit $rc
+            [ "$attempt" -lt 6 ] || exit $rc
+            delay=$(( attempt == 5 ? 240 : 20 * (1 << (attempt - 1)) ))
+            echo "gh_retry: rate limited (attempt $attempt/6), retrying in ${delay}s" >&2
+            sleep "$delay"
+          done
+          SCRIPT
+          chmod +x "$RUNNER_TEMP/bin/gh_retry"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          export PATH="$RUNNER_TEMP/bin:$PATH"
           printf "Started processing this issue. I'll post status updates here as work progresses. See the [workflow run](%s).\n\n%s\n" \
             "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" "$MARKER" \
-            | gh issue comment "$ISSUE_NUMBER" --body-file -
+            | gh_retry gh issue comment "$ISSUE_NUMBER" --body-file -
 
       - uses: actions/checkout@v4
         with:
@@ -180,7 +205,7 @@ jobs:
           cat > "$RUNNER_TEMP/bin/issue-say" <<'SCRIPT'
           #!/usr/bin/env bash
           if [ "$1" = --body ]; then body=$2; else body=$(cat); fi
-          printf '%s\n\n%s\n' "$body" "$MARKER" | gh issue comment "$ISSUE_NUMBER" --body-file -
+          printf '%s\n\n%s\n' "$body" "$MARKER" | gh_retry gh issue comment "$ISSUE_NUMBER" --body-file -
           SCRIPT
           chmod +x "$RUNNER_TEMP/bin/issue-say"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
@@ -318,7 +343,7 @@ jobs:
             cat "$RUNNER_TEMP/review-$round.md"
             echo "::endgroup::"
 
-            gh pr comment "$PR_NUMBER" --body-file - <<EOF
+            gh_retry gh pr comment "$PR_NUMBER" --body-file - <<EOF
           ## Code review (round $round)
 
           $(cat "$RUNNER_TEMP/review-$round.md")
@@ -348,7 +373,7 @@ jobs:
               || echo "_Fix verification unavailable._" > "$RUNNER_TEMP/verify-$round.md"
             cat "$RUNNER_TEMP/verify-$round.md"
 
-            gh pr comment "$PR_NUMBER" --body-file - <<EOF
+            gh_retry gh pr comment "$PR_NUMBER" --body-file - <<EOF
           ## Fix verification (round $round)
 
           $(cat "$RUNNER_TEMP/verify-$round.md")
@@ -384,7 +409,7 @@ jobs:
           if [ "$unresolved" = "true" ]; then
             echo "unresolved=true" >> "$GITHUB_OUTPUT"
             git merge --abort || true
-            gh pr comment "$PR_NUMBER" --body "Could not automatically resolve merge conflicts with \`$BASE\`; manual resolution required.
+            gh_retry gh pr comment "$PR_NUMBER" --body "Could not automatically resolve merge conflicts with \`$BASE\`; manual resolution required.
 
           $MARKER"
             issue-say --body "Could not automatically resolve merge conflicts with \`$BASE\`. Manual resolution required."
@@ -396,7 +421,7 @@ jobs:
           done < "$RUNNER_TEMP/conflicts.txt"
           git commit -m "Merge $BASE and resolve conflicts"
           git push
-          gh pr comment "$PR_NUMBER" --body "Resolved merge conflicts with \`$BASE\`:
+          gh_retry gh pr comment "$PR_NUMBER" --body "Resolved merge conflicts with \`$BASE\`:
 
           $(sed 's/^/- /' "$RUNNER_TEMP/conflicts.txt")
 
@@ -506,7 +531,7 @@ jobs:
           fi
           cat "$RUNNER_TEMP/eval.md"
 
-          gh pr comment "$PR_NUMBER" --body-file - <<EOF
+          gh_retry gh pr comment "$PR_NUMBER" --body-file - <<EOF
           ## Auto-merge eval
 
           $(cat "$RUNNER_TEMP/eval.md")
@@ -526,10 +551,51 @@ jobs:
             issue-say --body "Auto-merge eval: YES. Waiting for CI on $PR_URL..."
             # `gh pr checks` exits non-zero when a PR has no checks, so only watch if some exist
             check_count=$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup | length')
-            if { [ "$check_count" = "0" ] || gh pr checks "$PR_NUMBER" --watch --fail-fast; } \
-              && gh pr merge "$PR_NUMBER" --squash --delete-branch \
+            # Checkout credentials were dropped before the tests; authenticate git explicitly for re-sync fetch/push
+            gitx() { git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)" "$@"; }
+            # The base may move while waiting for CI; merge it in (agent resolves conflicts) and push. Fails if it cannot
+            resync() {
+              local before
+              before=$(git rev-parse HEAD)
+              # Drop tracked changes left by npm ci/install (e.g. package-lock.json) so the merge can run
+              git reset --hard HEAD || return 1
+              gitx fetch origin "$BASE" || return 1
+              if ! git merge --no-edit "origin/$BASE"; then
+                git diff --name-only --diff-filter=U > "$RUNNER_TEMP/conflicts.txt"
+                [ -s "$RUNNER_TEMP/conflicts.txt" ] || { git merge --abort || true; return 1; }
+                agent-retry edit "$GUIDANCE The branch has merge conflicts with origin/$BASE after running 'git merge origin/$BASE'. The conflicted files are listed in $RUNNER_TEMP/conflicts.txt. Resolve every conflict marker (<<<<<<<, =======, >>>>>>>) by editing those files so that both the intent of this branch and the changes from the base branch are preserved. Do not run git commit, git merge or git push." 40 || true
+                while IFS= read -r f; do
+                  if [ -f "$f" ] && grep -qE '^(<<<<<<<|>>>>>>>)( |$)' "$f"; then git merge --abort || true; return 1; fi
+                done < "$RUNNER_TEMP/conflicts.txt"
+                while IFS= read -r f; do
+                  if [ -e "$f" ]; then git add -- "$f"; else git rm -q --cached -- "$f" || true; fi
+                done < "$RUNNER_TEMP/conflicts.txt"
+                git commit -m "Merge $BASE and resolve conflicts" || return 1
+              fi
+              # Nothing new from the base means a retry cannot help
+              [ "$(git rev-parse HEAD)" != "$before" ] || return 1
+              gitx push origin "HEAD:$BRANCH"
+            }
+            attempt=1
+            merged=false
+            while :; do
+              # A real CI failure is final; only a failed merge (base moved) triggers a re-sync
+              if [ "$check_count" != "0" ] && ! gh pr checks "$PR_NUMBER" --watch --fail-fast; then break; fi
+              if gh pr merge "$PR_NUMBER" --squash --delete-branch \
                 --subject "$(gh pr view "$PR_NUMBER" --json title --jq .title) (#$PR_NUMBER)" \
-                --body ""; then
+                --body ""; then merged=true; break; fi
+              [ "$attempt" -le 2 ] && resync || break
+              issue-say --body "Merge retry $attempt/2: re-synced with $BASE"
+              attempt=$((attempt + 1))
+              # Give the new commit's checks time to register before watching again
+              # (a PR that had checks before must show them again before we watch/merge)
+              for _ in 1 2 3 4 5 6 7 8; do
+                sleep 15
+                check_count=$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup | length')
+                [ "$check_count" != "0" ] && break
+              done
+            done
+            if [ "$merged" = "true" ]; then
               # explicit empty --body drops the auto-generated Co-authored-by trailer
               label auto-merged 0e8a16
               echo "merged=true" >> "$GITHUB_OUTPUT"
@@ -585,6 +651,7 @@ jobs:
         if: failure()
         run: |
           # Inline (not issue-say): the wrapper may not be installed if an early step failed
+          retry=$(command -v gh_retry || true)
           printf 'The automated workflow failed. See the [workflow run](%s).\n\n%s\n' \
             "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" "$MARKER" \
-            | gh issue comment "$ISSUE_NUMBER" --body-file -
+            | $retry gh issue comment "$ISSUE_NUMBER" --body-file -
