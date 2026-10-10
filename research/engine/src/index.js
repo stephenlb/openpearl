@@ -15,3 +15,4 @@ export { createPlaybook, DEFAULT_RULES, REMEDIES } from './playbook.js';
 export { repairJSONL, repairCheckpoint } from './repair.js';
 export { createDegrader, DEFAULT_LEVELS } from './degrade.js';
 export { buildPostmortem } from './postmortem.js';
+export { rankStrategies, wilsonLowerBound } from './strategy.js';
