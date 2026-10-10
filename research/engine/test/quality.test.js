@@ -38,6 +38,25 @@ test('keywords and braces in comments and strings are ignored', () => {
   assert.equal(m.commentRatio, 1);
 });
 
+test('unterminated quote in a regex keeps line count', () => {
+  const m = measureSource('const r = /["\']/;\nconst x = 1;\n\nconst y = 2;\n');
+  assert.equal(m.lines, 4);
+});
+
+test('backslash line continuation in a string keeps line count', () => {
+  const m = measureSource("const s = 'a\\\nb';\nconst x = 1;\n");
+  assert.equal(m.lines, 3);
+});
+
+test('??= counts as one branch', () => {
+  assert.equal(measureSource('a ??= 1;').cyclomatic, 2);
+});
+
+test('multi-line template and block comment keep lines', () => {
+  const m = measureSource('const t = `a\nb`;\n/* x\ny */\nconst z = 1;\n');
+  assert.equal(m.lines, 5);
+});
+
 test('scanDir aggregates recursively, skipping node_modules and non-source', () => {
   const dir = mkdtempSync(join(tmpdir(), 'quality-'));
   try {

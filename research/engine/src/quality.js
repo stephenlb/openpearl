@@ -26,17 +26,23 @@ function strip(text) {
     } else if (c === '"' || c === "'" || c === '`') {
       code += c;
       i++;
-      while (i < text.length && text[i] !== c) {
-        if (text[i] === '\\') i++;
-        else if (text[i] === '\n') {
-          if (c !== '`') break;
+      let closed = false;
+      while (i < text.length) {
+        if (text[i] === c) { closed = true; break; }
+        if (text[i] === '\\') {
+          i++;
+          if (text[i] === '\n') { code += '\n'; line++; }
+          i++;
+          continue;
+        }
+        if (text[i] === '\n') {
+          if (c !== '`') break; // unterminated: leave the newline for the main loop
           code += '\n';
           line++;
         }
         i++;
       }
-      code += c;
-      i++;
+      if (closed) { code += c; i++; }
     } else {
       if (c === '\n') line++;
       code += c;
@@ -47,7 +53,7 @@ function strip(text) {
 }
 
 const FUNCTION_RE = /\bfunction\b|=>/g;
-const BRANCH_RE = /\b(?:if|for|while|case|catch)\b|&&|\|\||\?\?(?!=)|\?(?![.?:])/g;
+const BRANCH_RE = /\b(?:if|for|while|case|catch)\b|&&|\|\||\?\?(?!=)|(?<!\?)\?(?![.?:=])/g;
 
 const count = (re, s) => (s.match(re) || []).length;
 
