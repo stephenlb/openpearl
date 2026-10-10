@@ -45,3 +45,25 @@ test('register validates arguments', () => {
   assert.throws(() => h.register('', () => {}), TypeError);
   assert.throws(() => h.register('a', null), TypeError);
 });
+
+test('hung check times out as a failure', async () => {
+  const h = createHealth({ timeoutMs: 20 });
+  h.register('hang', () => new Promise(() => {}));
+  const r = await h.run();
+  assert.equal(r.status, 'down');
+  assert.match(r.checks.hang.error, /timed out/);
+});
+
+test('check named __proto__ is reported', async () => {
+  const h = createHealth();
+  h.register('__proto__', async () => false);
+  const r = await h.run();
+  assert.equal(r.status, 'down');
+  assert.equal(Object.keys(r.checks).length, 1);
+});
+
+test('duplicate registration throws', () => {
+  const h = createHealth();
+  h.register('a', () => {});
+  assert.throws(() => h.register('a', () => {}), /already registered/);
+});
