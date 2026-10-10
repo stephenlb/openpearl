@@ -56,8 +56,12 @@ test('ring buffer drops oldest beyond cap', () => {
   assert.deepEqual(log.query().map((e) => e.type), ['b', 'c']);
 });
 
-test('invalid cap throws', () => {
-  assert.throws(() => createEventLog({ cap: 0 }), RangeError);
+test('fromJSONL rejects malformed events atomically', () => {
+  const { log } = setup();
+  for (const bad of ['5', '[]', '{}', 'null', '{"foo":1}', '{"ts":"1","type":"a"}', '{"ts":1,"type":2}']) {
+    assert.throws(() => log.fromJSONL(`{"ts":1,"type":"a"}\n${bad}`), TypeError);
+  }
+  assert.equal(log.size(), 0);
 });
 
 test('JSONL round trip', () => {

@@ -29,7 +29,11 @@ export function createEventLog({ now = Date.now, cap = Infinity } = {}) {
       const parsed = [];
       for (const line of String(str).split('\n')) {
         if (line.trim() === '') continue;
-        const { ts, type, data = {} } = JSON.parse(line);
+        const entry = JSON.parse(line);
+        if (entry === null || typeof entry !== 'object' || !Number.isFinite(entry.ts) || typeof entry.type !== 'string') {
+          throw new TypeError('invalid event: ts must be a finite number and type a string');
+        }
+        const { ts, type, data = {} } = entry;
         parsed.push({ ts, type, data });
       }
       parsed.forEach(push);
