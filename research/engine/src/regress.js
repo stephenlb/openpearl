@@ -29,19 +29,28 @@ import assert from 'node:assert/strict';
 const input = ${lit(input)};
 const expected = ${lit(expected)};
 
+const NOT_IMPLEMENTED = new Error('reproduce() not implemented');
+
 // Replace with a call into the code under test; it must reject or throw.
 // Fails until implemented so an unedited file can't give false confidence.
 async function reproduce(input) {
-  assert.fail('reproduce() not implemented');
+  throw NOT_IMPLEMENTED;
 }
 
 test(${lit(title)}, async () => {
-  await assert.rejects(() => reproduce(input), (err) => {
-    assert.equal(err.name, expected.name);
-    assert.equal(err.message, expected.message);
-    if (expected.code !== null) assert.equal(err.code, expected.code);
-    return true;
-  });
+  let threw = false;
+  let err;
+  try {
+    await reproduce(input);
+  } catch (e) {
+    if (e === NOT_IMPLEMENTED) throw e;
+    threw = true;
+    err = e;
+  }
+  assert.ok(threw, 'reproduce() must reject or throw');
+  assert.equal(err?.name, expected.name);
+  assert.equal(err?.message, expected.message);
+  if (expected.code !== null) assert.equal(err?.code, expected.code);
 });
 `;
 }
