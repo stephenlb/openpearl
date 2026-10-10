@@ -57,6 +57,41 @@ test('multi-line template and block comment keep lines', () => {
   assert.equal(m.lines, 5);
 });
 
+test('aggregate commentRatio is total comment lines over total non-blank lines', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'quality-'));
+  try {
+    writeFileSync(join(dir, 'a.js'), '// c\n\n\n\n\nx;\n');
+    writeFileSync(join(dir, 'b.js'), 'y;\n');
+    assert.ok(Math.abs(scanDir(dir).commentRatio - 1 / 3) < 1e-9);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a block comment separates adjacent tokens', () => {
+  assert.equal(measureSource('if/**/(a) {}').cyclomatic, 2);
+  assert.equal(measureSource('function/**/f() {}').functions, 1);
+});
+
+test('TypeScript optional markers are not ternaries', () => {
+  assert.equal(measureSource('function f(a?, b?) {}').cyclomatic, 1);
+});
+
+test('scanDir reads .ts, skips dot-directories, and throws on a missing directory', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'quality-'));
+  try {
+    mkdirSync(join(dir, '.hidden'));
+    writeFileSync(join(dir, 'a.ts'), 'const f = () => 1;\n');
+    writeFileSync(join(dir, '.hidden', 'b.js'), 'function x() {}\n');
+    const r = scanDir(dir);
+    assert.equal(r.files, 1);
+    assert.equal(r.functions, 1);
+    assert.throws(() => scanDir(join(dir, 'missing')), { code: 'ENOENT' });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('scanDir aggregates recursively, skipping node_modules and non-source', () => {
   const dir = mkdtempSync(join(tmpdir(), 'quality-'));
   try {

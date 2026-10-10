@@ -5,6 +5,8 @@ const EXTS = new Set(['.js', '.mjs', '.cjs', '.ts']);
 const SKIP = new Set(['node_modules']);
 
 // Blank out comments and string contents (keeping newlines) and record which lines hold comments.
+// Heuristic: `${...}` bodies in template literals and regex literals are not parsed, so branches or
+// functions inside them go uncounted.
 function strip(text) {
   let code = '';
   const commentLines = new Set();
@@ -17,6 +19,7 @@ function strip(text) {
       while (i < text.length && text[i] !== '\n') { commentLines.add(line); i++; }
     } else if (c === '/' && n === '*') {
       i += 2;
+      code += ' '; // keep adjacent tokens apart
       commentLines.add(line);
       while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) {
         if (text[i] === '\n') { code += '\n'; line++; commentLines.add(line); }
@@ -53,11 +56,11 @@ function strip(text) {
 }
 
 const FUNCTION_RE = /\bfunction\b|=>/g;
-const BRANCH_RE = /\b(?:if|for|while|case|catch)\b|&&|\|\||\?\?(?!=)|(?<!\?)\?(?![.?:=])/g;
+const BRANCH_RE = /\b(?:if|for|while|case|catch)\b|&&|\|\||\?\?(?!=)|(?<!\?)\?(?![.?:=,)])/g;
 
 const count = (re, s) => (s.match(re) || []).length;
 
-export function measureSource(text) {
+function analyze(text) {
   const { code, commentLines } = strip(String(text));
   const rows = code.split('\n');
   if (rows[rows.length - 1] === '') rows.pop(); // trailing newline is not another line
@@ -74,12 +77,20 @@ export function measureSource(text) {
   });
   const nonBlank = lines - blank;
   return {
+    nonBlank,
+    commentCount: commentLines.size,
     lines,
     functions: count(FUNCTION_RE, code),
     maxDepth,
-    commentRatio: nonBlank > 0 ? commentLines.size / nonBlank : 0,
     cyclomatic: 1 + count(BRANCH_RE, code),
   };
+}
+
+const ratio = (comments, nonBlank) => (nonBlank > 0 ? comments / nonBlank : 0);
+
+export function measureSource(text) {
+  const { nonBlank, commentCount, ...m } = analyze(text);
+  return { ...m, commentRatio: ratio(commentCount, nonBlank) };
 }
 
 function* walk(dir) {
@@ -95,17 +106,19 @@ function* walk(dir) {
 export function scanDir(path) {
   const perFile = [];
   const total = { files: 0, lines: 0, functions: 0, maxDepth: 0, commentRatio: 0, cyclomatic: 0 };
-  let weighted = 0;
+  let comments = 0;
+  let nonBlank = 0;
   for (const file of walk(path)) {
-    const m = measureSource(readFileSync(file, 'utf8'));
-    perFile.push({ file, ...m });
+    const { nonBlank: nb, commentCount, ...m } = analyze(readFileSync(file, 'utf8'));
+    perFile.push({ file, ...m, commentRatio: ratio(commentCount, nb) });
+    comments += commentCount;
+    nonBlank += nb;
     total.files++;
     total.lines += m.lines;
     total.functions += m.functions;
     total.cyclomatic += m.cyclomatic;
     total.maxDepth = Math.max(total.maxDepth, m.maxDepth);
-    weighted += m.commentRatio * m.lines;
   }
-  total.commentRatio = total.lines > 0 ? weighted / total.lines : 0;
+  total.commentRatio = ratio(comments, nonBlank);
   return { ...total, perFile };
 }
