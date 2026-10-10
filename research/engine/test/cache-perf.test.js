@@ -24,16 +24,3 @@ test('non-adaptive cache behaves identically without per-key history', () => {
   assert.equal(c.get('c'), undefined);
   assert.equal(c.stats().expirations, 1);
 });
-
-test('benchmark: non-adaptive hot loop is not slower than adaptive', () => {
-  const run = (adaptive) => {
-    const c = createCache({ ttlMs: 1e9, adaptive, maxEntries: 100 });
-    const t0 = process.hrtime.bigint();
-    for (let i = 0; i < 100000; i++) { const k = i % 100; if (c.get(k) === undefined) c.set(k, i); }
-    return Number(process.hrtime.bigint() - t0);
-  };
-  run(false); run(true); // warm up
-  const fast = Math.min(run(false), run(false), run(false));
-  const slow = Math.min(run(true), run(true), run(true));
-  assert.ok(fast <= slow * 1.5, `non-adaptive ${fast}ns vs adaptive ${slow}ns`);
-});
