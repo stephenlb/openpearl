@@ -5,5 +5,6 @@ export function backoffDelay(
 ) {
   const raw = Math.min(maxMs, baseMs * factor ** Math.max(0, attempt));
   const spread = 1 + jitter * (2 * rng() - 1);
-  return Math.min(maxMs, Math.max(0, Math.round(raw * spread)));
+  // Floor the cap so a fractional maxMs can't leak a non-integer result.
+  return Math.min(Math.floor(maxMs), Math.max(0, Math.round(raw * spread)));
 }
