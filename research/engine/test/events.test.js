@@ -14,6 +14,27 @@ test('emit records timestamp, type and data', () => {
   assert.equal(log.size(), 1);
 });
 
+test('fromJSONL is atomic on malformed input and defaults data', () => {
+  const { log } = setup();
+  assert.throws(() => log.fromJSONL('{"ts":1,"type":"a"}\nnot json'));
+  assert.equal(log.size(), 0);
+  log.fromJSONL('{"ts":1,"type":"a"}');
+  assert.deepEqual(log.query(), [{ ts: 1, type: 'a', data: {} }]);
+});
+
+test('invalid cap is rejected', () => {
+  for (const cap of [0, -1, 1.5, NaN]) assert.throws(() => createEventLog({ cap }), RangeError);
+});
+
+test('query returns [] when nothing matches and results are isolated', () => {
+  const { log } = setup();
+  const d = { x: 1 };
+  log.emit('a', d).data.x = 2;
+  d.x = 3;
+  assert.deepEqual(log.query({ type: 'zzz' }), []);
+  assert.equal(log.query()[0].data.x, 1);
+});
+
 test('query filters by type and since', () => {
   const { log, advance } = setup();
   log.emit('a');
