@@ -30,4 +30,5 @@ export { tune } from './tuner.js';
 export { bench, compareBench } from './bench.js';
 export { createShedder } from './shed.js';
 export { createBatcher } from './batch.js';
+export { createBudget } from './budget.js';
 export { createProfiler } from './profile.js';
