@@ -76,5 +76,10 @@ export function createCheckpointStore({ path, fs = nodeFs } = {}) {
     return true;
   }
 
-  return { save, load, clear };
+  // Returns all keys that currently have a checkpoint, in insertion order.
+  function keys() {
+    return [...data.keys()];
+  }
+
+  return { save, load, clear, keys };
 }
