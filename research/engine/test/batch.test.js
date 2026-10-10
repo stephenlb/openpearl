@@ -70,27 +70,94 @@ test('add returns the flush result on size flush', () => {
   assert.equal(b.add('x'), 1);
 });
 
-test('timer flush errors are swallowed, sync and async', async () => {
-  const sync = setup({
+test('timer flush errors go to onError, sync and async', async () => {
+  const errors = [];
+  const onError = (err, batch) => errors.push([err.message, batch]);
+  const syncCase = setup({
+    onError,
     flush: () => {
-      throw new Error('boom');
+      throw new Error('sync');
     },
   });
-  sync.b.add(1);
-  sync.timers[0].fn();
-  assert.equal(sync.b.size, 0);
-  const async = setup({
+  syncCase.b.add(1);
+  syncCase.timers[0].fn();
+  assert.equal(syncCase.b.size, 0);
+  const asyncCase = setup({
+    onError,
     flush: async () => {
-      throw new Error('boom');
+      throw new Error('async');
     },
   });
-  async.b.add(1);
-  async.timers[0].fn();
+  asyncCase.b.add(2);
+  asyncCase.timers[0].fn();
   await new Promise((r) => setImmediate(r));
+  assert.equal(asyncCase.b.size, 0);
+  assert.deepEqual(errors, [
+    ['sync', [1]],
+    ['async', [2]],
+  ]);
+});
+
+test('timer flush errors without onError do not become unhandled rejections', async () => {
+  const unhandled = [];
+  const onUnhandled = (e) => unhandled.push(e);
+  process.on('unhandledRejection', onUnhandled);
+  const { b, timers } = setup({ flush: async () => Promise.reject(new Error('x')) });
+  b.add(1);
+  timers[0].fn();
+  await new Promise((r) => setImmediate(r));
+  process.off('unhandledRejection', onUnhandled);
+  assert.deepEqual(unhandled, []);
+});
+
+test('add and manual flush propagate flush errors and drop the batch', () => {
+  const boom = () => {
+    throw new Error('boom');
+  };
+  const sized = setup({ maxSize: 1, flush: boom });
+  assert.throws(() => sized.b.add(1), /boom/);
+  assert.equal(sized.b.size, 0);
+  const manual = setup({ flush: boom });
+  manual.b.add(1);
+  assert.throws(() => manual.b.flush(), /boom/);
+  assert.equal(manual.b.size, 0);
+});
+
+test('maxWaitMs of 0 schedules a zero-delay timer', () => {
+  const { b, batches, timers } = setup({ maxWaitMs: 0 });
+  b.add(1);
+  assert.equal(timers[0].ms, 0);
+  timers[0].fn();
+  assert.deepEqual(batches, [[1]]);
+});
+
+test('a size flush followed by add starts a fresh timer', () => {
+  const { b, timers } = setup({ maxSize: 2 });
+  b.add(1);
+  b.add(2);
+  b.add(3);
+  assert.equal(timers.length, 2);
+  assert.equal(timers[1].cancelled, false);
+});
+
+test('default timer flushes after maxWaitMs', async () => {
+  const batches = [];
+  const b = createBatcher({ maxSize: 5, maxWaitMs: 5, flush: (x) => batches.push(x) });
+  b.add(1);
+  await new Promise((r) => setTimeout(r, 30));
+  assert.deepEqual(batches, [[1]]);
+  for (const n of [2, 3, 4, 5, 6]) b.add(n);
+  assert.deepEqual(batches, [[1], [2, 3, 4, 5, 6]]);
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(batches.length, 2);
 });
 
 test('validates options', () => {
   assert.throws(() => createBatcher({ maxSize: 0, maxWaitMs: 1, flush() {} }), RangeError);
   assert.throws(() => createBatcher({ maxSize: 1, maxWaitMs: -1, flush() {} }), RangeError);
   assert.throws(() => createBatcher({ maxSize: 1, maxWaitMs: 1 }), TypeError);
+  assert.throws(
+    () => createBatcher({ maxSize: 1, maxWaitMs: 1, flush() {}, onError: 1 }),
+    TypeError,
+  );
 });
