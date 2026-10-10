@@ -39,6 +39,13 @@ const cases = [
   ['string input', 'connection reset by peer', 'transient', true],
   ['null', null, 'unknown', false],
   ['undefined', undefined, 'unknown', false],
+  ['fetch failed with ECONNREFUSED cause', new TypeError('fetch failed', { cause: make({ code: 'ECONNREFUSED' }) }), 'transient', true],
+  ['fetch failed with timeout cause', new TypeError('fetch failed', { cause: make({ code: 'UND_ERR_CONNECT_TIMEOUT' }) }), 'timeout', true],
+  ['TypeError with unknown cause', new TypeError('fetch failed', { cause: make({ code: 'EWHATEVER' }) }), 'permanent', false],
+  ['RangeError non-memory', new RangeError('Invalid array length'), 'permanent', false],
+  ['RangeError mentioning heap', new RangeError('heap snapshot index out of range'), 'permanent', false],
+  ['message-only object', { message: 'socket hang up' }, 'transient', true],
+  ['number input', 42, 'unknown', false],
   ['non-string code', { code: 42, message: 'odd' }, 'unknown', false],
 ];
 
