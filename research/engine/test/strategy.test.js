@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { rankStrategies, strategyWilsonLowerBound as wilsonLowerBound } from '../src/index.js';
+import { rankStrategies, wilsonLowerBound } from '../src/strategy.js';
 
 const learner = (table) => ({ stats: (id) => table[id] });
 const ids = (list) => list.map((c) => c.id);
