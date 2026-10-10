@@ -215,3 +215,26 @@ test('onGiveUp is not called on success and a throwing one is ignored', async ()
   );
   assert.equal(res.ok, false);
 });
+
+test('onGiveUp is called on a permanent error', async () => {
+  const calls = [];
+  const res = await runTask(
+    () => {
+      throw permanent();
+    },
+    { sleep: () => {}, onGiveUp: (info) => calls.push(info) },
+  );
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].attempts, 1);
+  assert.equal(calls[0].error, res.error);
+});
+
+test('a rejecting async onGiveUp is ignored', async () => {
+  const res = await runTask(
+    () => {
+      throw new Error('x');
+    },
+    { retries: 0, onGiveUp: async () => { throw new Error('cb'); } },
+  );
+  assert.equal(res.ok, false);
+});
