@@ -24,7 +24,10 @@ function isFatal(err) {
  * earlier attempt may still be running when the retry starts. Keep `fn` idempotent.
  * `onGiveUp({attempts, error})` is called once when the task fails for good
  * (retries exhausted or a permanent error); errors it throws are ignored.
- * Returns `{ok: true, value, attempts}` or `{ok: false, error, attempts}`.
+ * Returns `{ok: true, value, attempts}` or, on failure,
+ * `{ok: false, error, attempts, diagnostics}`. Success cannot be guaranteed (a function that
+ * always throws never succeeds), so failures are reported honestly: `diagnostics` is
+ * `{reason: 'permanent'|'exhausted', maxAttempts, errors: [{attempt, name, message, class, retryable}]}`.
  */
 export async function runTask(fn, { retries = 3, delayMs = 0, sleep = defaultSleep, onAttempt, onGiveUp, retryAll = false, timeoutMs, setTimer, clearTimer } = {}) {
   const maxAttempts = (Number.isFinite(retries) ? Math.max(0, retries) : 3) + 1;
@@ -42,6 +45,8 @@ export async function runTask(fn, { retries = 3, delayMs = 0, sleep = defaultSle
   if (clearTimer) timerOpts.clearTimer = clearTimer;
   let attempts = 0;
   let error;
+  let reason = 'exhausted';
+  const errors = [];
   while (attempts < maxAttempts) {
     attempts++;
     let value;
@@ -50,8 +55,20 @@ export async function runTask(fn, { retries = 3, delayMs = 0, sleep = defaultSle
       value = useTimeout ? await withTimeout(() => fn(attempt), timeoutMs, timerOpts) : await fn(attempt);
     } catch (err) {
       error = err;
+      const verdict = classifyError(err);
+      const isObj = err !== null && typeof err === 'object';
+      errors.push({
+        attempt: attempts,
+        name: isObj ? err.name : typeof err,
+        message: isObj ? String(err.message) : String(err),
+        class: verdict.class,
+        retryable: verdict.retryable,
+      });
       notify({ attempt: attempts, ok: false, error: err });
-      if (!retryAll && isFatal(err)) break;
+      if (!retryAll && isFatal(err)) {
+        reason = 'permanent';
+        break;
+      }
       if (attempts < maxAttempts && delayMs > 0) await sleep(delayMs);
       continue;
     }
@@ -63,5 +80,5 @@ export async function runTask(fn, { retries = 3, delayMs = 0, sleep = defaultSle
   } catch {
     // ignored
   }
-  return { ok: false, error, attempts };
+  return { ok: false, error, attempts, diagnostics: { reason, maxAttempts, errors } };
 }
