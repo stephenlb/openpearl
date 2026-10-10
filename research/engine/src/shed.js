@@ -24,7 +24,7 @@ export function createShedder({ maxQueue, maxLatencyMs = Infinity, priority = 3,
     admit(level = priority - 1) {
       if (!(Number.isInteger(level) && level >= 0 && level < priority)) throw new RangeError('level out of range');
       const l = load();
-      const cutoff = l < 1 ? 0 : Math.min(priority - 1, 1 + Math.floor((l - 1) * priority));
+      const cutoff = l < 1 ? 0 : Math.min(priority - 1, 1 + Math.floor((l - 1) * priority + 1e-9));
       if (level < cutoff) {
         stats.shed += 1;
         return { admitted: false, reason: queueLoad() >= latencyLoad() ? 'queue' : 'latency', load: l };
