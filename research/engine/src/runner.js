@@ -17,9 +17,11 @@ function isFatal(err) {
  * Run `fn` and retry on thrown errors (or rejections).
  * `retries` is the number of retries after the first attempt.
  * Permanent errors stop immediately unless `retryAll` is true.
+ * `onGiveUp({attempts, error})` is called once when the task fails for good
+ * (retries exhausted or a permanent error); errors it throws are ignored.
  * Returns `{ok: true, value, attempts}` or `{ok: false, error, attempts}`.
  */
-export async function runTask(fn, { retries = 3, delayMs = 0, sleep = defaultSleep, onAttempt, retryAll = false } = {}) {
+export async function runTask(fn, { retries = 3, delayMs = 0, sleep = defaultSleep, onAttempt, onGiveUp, retryAll = false } = {}) {
   const maxAttempts = (Number.isFinite(retries) ? Math.max(0, retries) : 3) + 1;
   // A misbehaving observer must not affect the task outcome.
   const notify = (info) => {
@@ -45,6 +47,11 @@ export async function runTask(fn, { retries = 3, delayMs = 0, sleep = defaultSle
     }
     notify({ attempt: attempts, ok: true });
     return { ok: true, value, attempts };
+  }
+  try {
+    if (onGiveUp) Promise.resolve(onGiveUp({ attempts, error })).catch(() => {});
+  } catch {
+    // ignored
   }
   return { ok: false, error, attempts };
 }
