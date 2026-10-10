@@ -526,10 +526,51 @@ jobs:
             issue-say --body "Auto-merge eval: YES. Waiting for CI on $PR_URL..."
             # `gh pr checks` exits non-zero when a PR has no checks, so only watch if some exist
             check_count=$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup | length')
-            if { [ "$check_count" = "0" ] || gh pr checks "$PR_NUMBER" --watch --fail-fast; } \
-              && gh pr merge "$PR_NUMBER" --squash --delete-branch \
+            # Checkout credentials were dropped before the tests; authenticate git explicitly for re-sync fetch/push
+            gitx() { git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)" "$@"; }
+            # The base may move while waiting for CI; merge it in (agent resolves conflicts) and push. Fails if it cannot
+            resync() {
+              local before
+              before=$(git rev-parse HEAD)
+              # Drop tracked changes left by npm ci/install (e.g. package-lock.json) so the merge can run
+              git reset --hard HEAD || return 1
+              gitx fetch origin "$BASE" || return 1
+              if ! git merge --no-edit "origin/$BASE"; then
+                git diff --name-only --diff-filter=U > "$RUNNER_TEMP/conflicts.txt"
+                [ -s "$RUNNER_TEMP/conflicts.txt" ] || { git merge --abort || true; return 1; }
+                agent-retry edit "$GUIDANCE The branch has merge conflicts with origin/$BASE after running 'git merge origin/$BASE'. The conflicted files are listed in $RUNNER_TEMP/conflicts.txt. Resolve every conflict marker (<<<<<<<, =======, >>>>>>>) by editing those files so that both the intent of this branch and the changes from the base branch are preserved. Do not run git commit, git merge or git push." 40 || true
+                while IFS= read -r f; do
+                  if [ -f "$f" ] && grep -qE '^(<<<<<<<|>>>>>>>)( |$)' "$f"; then git merge --abort || true; return 1; fi
+                done < "$RUNNER_TEMP/conflicts.txt"
+                while IFS= read -r f; do
+                  if [ -e "$f" ]; then git add -- "$f"; else git rm -q --cached -- "$f" || true; fi
+                done < "$RUNNER_TEMP/conflicts.txt"
+                git commit -m "Merge $BASE and resolve conflicts" || return 1
+              fi
+              # Nothing new from the base means a retry cannot help
+              [ "$(git rev-parse HEAD)" != "$before" ] || return 1
+              gitx push origin "HEAD:$BRANCH"
+            }
+            attempt=1
+            merged=false
+            while :; do
+              # A real CI failure is final; only a failed merge (base moved) triggers a re-sync
+              if [ "$check_count" != "0" ] && ! gh pr checks "$PR_NUMBER" --watch --fail-fast; then break; fi
+              if gh pr merge "$PR_NUMBER" --squash --delete-branch \
                 --subject "$(gh pr view "$PR_NUMBER" --json title --jq .title) (#$PR_NUMBER)" \
-                --body ""; then
+                --body ""; then merged=true; break; fi
+              [ "$attempt" -le 2 ] && resync || break
+              issue-say --body "Merge retry $attempt/2: re-synced with $BASE"
+              attempt=$((attempt + 1))
+              # Give the new commit's checks time to register before watching again
+              # (a PR that had checks before must show them again before we watch/merge)
+              for _ in 1 2 3 4 5 6 7 8; do
+                sleep 15
+                check_count=$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup | length')
+                [ "$check_count" != "0" ] && break
+              done
+            done
+            if [ "$merged" = "true" ]; then
               # explicit empty --body drops the auto-generated Co-authored-by trailer
               label auto-merged 0e8a16
               echo "merged=true" >> "$GITHUB_OUTPUT"
