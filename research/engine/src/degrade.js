@@ -20,6 +20,9 @@ export function createDegrader({
   if (!Array.isArray(levels) || levels.length < 2) {
     throw new RangeError('levels must have at least two entries');
   }
+  if (levels.some((l) => l === null || typeof l !== 'object') || levels[0].enterAt !== 0) {
+    throw new RangeError('levels must be objects and the first must have enterAt 0');
+  }
   for (let i = 1; i < levels.length; i++) {
     if (!(levels[i].enterAt > levels[i - 1].enterAt) || levels[i].enterAt > 1) {
       throw new RangeError('levels must have strictly increasing enterAt up to 1');
@@ -32,15 +35,35 @@ export function createDegrader({
     throw new RangeError('recoverRatio must be in (0, 1]');
   }
 
-  const samples = []; // { t, ok }, in time order
+  if (!Number.isInteger(minSamples) || minSamples < 1) {
+    throw new RangeError('minSamples must be a positive integer');
+  }
+  if (!Number.isFinite(holdMs) || holdMs < 0) {
+    throw new RangeError('holdMs must be a non-negative number');
+  }
+  if (typeof onChange !== 'function') {
+    throw new TypeError('onChange must be a function');
+  }
+
+  const samples = []; // { t, ok }, in time order; live window starts at `head`
+  let head = 0;
+  let failures = 0;
   let index = 0;
   let changedAt = now();
 
   function errorRate() {
     const cutoff = now() - windowMs;
-    while (samples.length && samples[0].t <= cutoff) samples.shift();
-    if (samples.length < minSamples) return 0;
-    return samples.filter((s) => !s.ok).length / samples.length;
+    while (head < samples.length && samples[head].t <= cutoff) {
+      if (!samples[head].ok) failures--;
+      head++;
+    }
+    if (head > 1024 && head * 2 > samples.length) {
+      samples.splice(0, head);
+      head = 0;
+    }
+    const total = samples.length - head;
+    if (total < minSamples) return 0;
+    return failures / total;
   }
 
   function move(to) {
@@ -68,7 +91,9 @@ export function createDegrader({
 
   return {
     record(ok) {
-      samples.push({ t: now(), ok: Boolean(ok) });
+      const good = Boolean(ok);
+      samples.push({ t: now(), ok: good });
+      if (!good) failures++;
       evaluate();
     },
     // Current level object; re-evaluates so recovery happens as time passes.

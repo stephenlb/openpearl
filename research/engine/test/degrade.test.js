@@ -67,3 +67,52 @@ test('rejects invalid configuration', () => {
   );
   assert.throws(() => createDegrader({ windowMs: 0 }), RangeError);
 });
+
+test('jumps several levels at once', () => {
+  const { clock, changes, d } = setup();
+  feed(d, clock, [false, false, false, false]);
+  assert.equal(d.level().name, 'minimal');
+  assert.deepEqual(changes, ['full>minimal']);
+});
+
+test('a throwing onChange does not break the controller', () => {
+  const { clock, d } = setup({
+    onChange: () => {
+      throw new Error('boom');
+    },
+  });
+  feed(d, clock, [false, false, false, false]);
+  assert.equal(d.level().name, 'minimal');
+});
+
+test('holdMs blocks recovery until it elapses', () => {
+  const { clock, d } = setup({ windowMs: 100, holdMs: 500 });
+  feed(d, clock, [false, false, false, false]);
+  assert.equal(d.level().name, 'minimal');
+  clock.t += 200; // window empty, but hold not elapsed
+  assert.equal(d.level().name, 'minimal');
+  clock.t += 400;
+  assert.equal(d.level().name, 'reduced');
+});
+
+test('idle traffic (below minSamples) reads as 0 and allows recovery', () => {
+  const { clock, d } = setup({ windowMs: 100, holdMs: 0 });
+  feed(d, clock, [false, false, false, false]);
+  assert.equal(d.level().name, 'minimal');
+  clock.t += 1000;
+  assert.equal(d.level().name, 'reduced');
+});
+
+test('rejects invalid options', () => {
+  const lv = (...rates) => rates.map((enterAt, i) => ({ name: `l${i}`, enterAt }));
+  const bad = [
+    { levels: lv(0, 2) },
+    { levels: lv(0, 0.5, 0.4) },
+    { levels: lv(0.1, 0.5) },
+    { minSamples: NaN },
+    { minSamples: -1 },
+    { holdMs: -1 },
+  ];
+  for (const o of bad) assert.throws(() => createDegrader(o), RangeError);
+  assert.throws(() => createDegrader({ onChange: 'x' }), TypeError);
+});
