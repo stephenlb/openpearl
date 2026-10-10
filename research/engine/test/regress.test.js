@@ -6,6 +6,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { generateRegressionTest } from '../src/index.js';
 
+// A nested --test run must not inherit the parent runner's context.
+const childEnv = { ...process.env, NODE_TEST_CONTEXT: undefined };
+
 const event = {
   id: 'f1',
   task: 'sync',
@@ -27,7 +30,7 @@ test('output parses and fails until reproduce() is implemented', () => {
     writeFileSync(file, generateRegressionTest(event));
     const check = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
     assert.equal(check.status, 0, check.stderr);
-    const run = spawnSync(process.execPath, ['--test', file], { encoding: 'utf8' });
+    const run = spawnSync(process.execPath, ['--test', file], { encoding: 'utf8', env: childEnv });
     assert.notEqual(run.status, 0);
     assert.match(run.stdout + run.stderr, /reproduce\(\) not implemented/);
     const filled = readFileSync(file, 'utf8').replace(
@@ -35,7 +38,7 @@ test('output parses and fails until reproduce() is implemented', () => {
       'throw Object.assign(new TypeError(expected.message), { code: expected.code });',
     );
     writeFileSync(file, filled);
-    const ok = spawnSync(process.execPath, ['--test', file], { encoding: 'utf8' });
+    const ok = spawnSync(process.execPath, ['--test', file], { encoding: 'utf8', env: childEnv });
     assert.equal(ok.status, 0, ok.stdout + ok.stderr);
   } finally {
     rmSync(dir, { recursive: true, force: true });
