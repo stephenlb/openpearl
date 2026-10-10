@@ -64,6 +64,29 @@ test('empty input', () => {
 `);
 });
 
+test('rejects unknown event types', () => {
+  assert.throws(() => buildPostmortem([{ ts: T, type: 'retry', job: 'a' }]), TypeError);
+});
+
+test('collapses newlines in values', () => {
+  const out = buildPostmortem([
+    { ts: T, type: 'failure', job: 'a', class: 'c', message: 'l1\n# h\nl3' },
+  ]);
+  assert.match(out, /failure: a \[c\] l1 # h l3\n/);
+});
+
+test('edge cases: orphan recovery, Date/ISO ts, missing job, sub-second MTTR', () => {
+  const out = buildPostmortem([
+    { ts: new Date(T), type: 'failure', class: 'x' },
+    { ts: new Date(T + 250).toISOString(), type: 'recovery' },
+    { ts: T + 300, type: 'recovery', job: 'orphan' },
+  ]);
+  assert.match(out, /failure: \(unknown\) \[x\]/);
+  assert.match(out, /- 250ms across 1 resolved incident\(s\)\n/);
+  assert.doesNotMatch(out, /unresolved/);
+  assert.match(out, /- orphan\n/);
+});
+
 test('rejects bad input', () => {
   assert.throws(() => buildPostmortem('x'), TypeError);
   assert.throws(() => buildPostmortem([{ ts: 'nope', type: 'failure' }]), TypeError);

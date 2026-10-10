@@ -7,6 +7,11 @@ function toMs(ts) {
   return ms;
 }
 
+// Collapse whitespace/newlines so values can't break the markdown list structure.
+function clean(v) {
+  return String(v).replace(/\s+/g, ' ').trim();
+}
+
 function formatDuration(ms) {
   if (ms < 1000) return `${Math.round(ms)}ms`;
   return `${Math.round(ms / 10) / 100}s`;
@@ -25,7 +30,7 @@ export function buildPostmortem(events = []) {
   const timeline = [];
 
   for (const e of sorted) {
-    const job = e.job ?? '(unknown)';
+    const job = (e.job == null ? '' : clean(e.job)) || '(unknown)';
     jobs.add(job);
     const stamp = new Date(e.ms).toISOString();
     if (e.type === 'recovery') {
@@ -34,11 +39,14 @@ export function buildPostmortem(events = []) {
         durations.push(e.ms - open.get(job));
         open.delete(job);
       }
-    } else {
-      const cls = e.class ?? 'unknown';
+    } else if (e.type === 'failure') {
+      const cls = (e.class == null ? '' : clean(e.class)) || 'unknown';
+      const msg = e.message == null ? '' : clean(e.message);
       classes.set(cls, (classes.get(cls) ?? 0) + 1);
       if (!open.has(job)) open.set(job, e.ms);
-      timeline.push(`- ${stamp} failure: ${job} [${cls}]${e.message ? ` ${e.message}` : ''}`);
+      timeline.push(`- ${stamp} failure: ${job} [${cls}]${msg ? ` ${msg}` : ''}`);
+    } else {
+      throw new TypeError(`unknown event type: ${String(e.type)}`);
     }
   }
 
