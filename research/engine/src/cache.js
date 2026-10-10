@@ -25,7 +25,9 @@ export function createCache({ ttlMs, now = Date.now, maxEntries = Infinity, adap
   const history = new Map();
   const s = { hits: 0, misses: 0, evictions: 0, expirations: 0 };
 
+  // History is only consulted for adaptive TTLs, so skip the bookkeeping otherwise.
   const record = (key, hit) => {
+    if (!adaptive) return;
     const h = history.get(key) ?? { hits: 0, misses: 0 };
     history.delete(key);
     if (hit) h.hits++; else h.misses++;
@@ -53,8 +55,11 @@ export function createCache({ ttlMs, now = Date.now, maxEntries = Infinity, adap
       return undefined;
     },
     set(key, value) {
-      const h = history.get(key) ?? { hits: 0, misses: 0 };
-      const ttl = adaptive ? adaptTtl({ ttlMs, hits: h.hits, misses: h.misses, minSamples, threshold, factor, maxTtlMs }) : ttlMs;
+      let ttl = ttlMs;
+      if (adaptive) {
+        const h = history.get(key) ?? { hits: 0, misses: 0 };
+        ttl = adaptTtl({ ttlMs, hits: h.hits, misses: h.misses, minSamples, threshold, factor, maxTtlMs });
+      }
       entries.delete(key);
       entries.set(key, { value, expiresAt: now() + ttl });
       while (entries.size > maxEntries) {
