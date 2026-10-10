@@ -14,6 +14,14 @@ test('overrides merge over defaults', () => {
   assert.equal(c.timeoutMs, DEFAULTS.timeoutMs);
 });
 
+test('undefined values fall back to defaults', () => {
+  assert.deepEqual(loadConfig({ retries: undefined }), DEFAULTS);
+});
+
+test('rejects unknown keys', () => {
+  assert.throws(() => loadConfig({ timeoutMS: 5 }), /timeoutMS: unknown option/);
+});
+
 test('does not mutate input or defaults', () => {
   const input = { retries: 1 };
   loadConfig(input);
