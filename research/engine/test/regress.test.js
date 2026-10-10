@@ -30,8 +30,9 @@ test('output parses and fails until reproduce() is implemented', () => {
     writeFileSync(file, generateRegressionTest(event));
     const check = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
     assert.equal(check.status, 0, check.stderr);
-    // The generated test is designed to fail, so only check syntax, never run it.
-    assert.match(readFileSync(file, 'utf8'), /reproduce\(\) not implemented/);
+    const run = spawnSync(process.execPath, ['--test', file], { encoding: 'utf8', env: childEnv });
+    assert.notEqual(run.status, 0);
+    assert.match(run.stdout + run.stderr, /reproduce\(\) not implemented/);
     const filled = readFileSync(file, 'utf8').replace(
       "assert.fail('reproduce() not implemented');",
       'throw Object.assign(new TypeError(expected.message), { code: expected.code });',
