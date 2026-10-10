@@ -33,3 +33,4 @@ export { createBatcher } from './batch.js';
 export { createBudget } from './budget.js';
 export { createProfiler } from './profile.js';
 export { createEngine } from './engine.js';
+export { scorecard, renderMarkdown as renderScorecard, WEIGHTS as SCORECARD_WEIGHTS } from './scorecard.js';
