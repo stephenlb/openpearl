@@ -73,7 +73,7 @@ jobs:
             "$@" < "$in" 2> "$err" && { cat "$err" >&2; exit 0; }
             rc=$?
             cat "$err" >&2
-            grep -qiE 'too quickly|rate limit|abuse|HTTP 429' "$err" || exit $rc
+            grep -qiE 'too quickly|secondary rate limit|abuse|HTTP 429' "$err" || exit $rc
             [ "$attempt" -lt 6 ] || exit $rc
             delay=$(( attempt == 5 ? 240 : 20 * (1 << (attempt - 1)) ))
             echo "gh_retry: rate limited (attempt $attempt/6), retrying in ${delay}s" >&2
@@ -649,6 +649,7 @@ jobs:
         if: failure()
         run: |
           # Inline (not issue-say): the wrapper may not be installed if an early step failed
+          retry=$(command -v gh_retry || true)
           printf 'The automated workflow failed. See the [workflow run](%s).\n\n%s\n' \
             "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" "$MARKER" \
-            | gh issue comment "$ISSUE_NUMBER" --body-file -
+            | $retry gh issue comment "$ISSUE_NUMBER" --body-file -
