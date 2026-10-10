@@ -15,5 +15,6 @@ export { createPlaybook, DEFAULT_RULES, REMEDIES } from './playbook.js';
 export { repairJSONL, repairCheckpoint } from './repair.js';
 export { createDegrader, DEFAULT_LEVELS } from './degrade.js';
 export { createLearner, wilsonLowerBound } from './learn.js';
+export { compareArms } from './ab.js';
 export { rankStrategies, wilsonLowerBound as strategyWilsonLowerBound } from './strategy.js';
 export { draftIssues, failureSignature } from './issuedraft.js';
