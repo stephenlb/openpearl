@@ -19,5 +19,6 @@ export { generateRegressionTest } from './regress.js';
 export { compareArms } from './ab.js';
 export { rankStrategies, wilsonLowerBound as strategyWilsonLowerBound } from './strategy.js';
 export { draftIssues, failureSignature } from './issuedraft.js';
+export { createBandit, sampleBeta } from './bandit.js';
 export { createLedger } from './ledger.js';
 export { measureSource, scanDir } from './quality.js';
