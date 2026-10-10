@@ -4,6 +4,9 @@ const HISTORY_LIMIT = 1000;
 
 export function adaptTtl({ ttlMs, hits = 0, misses = 0, minSamples = 5, threshold = 0.8, factor = 2, maxTtlMs = ttlMs * 8 } = {}) {
   if (!(Number.isFinite(ttlMs) && ttlMs > 0)) throw new RangeError('ttlMs must be a positive finite number');
+  if (!(Number.isFinite(factor) && factor >= 1)) throw new RangeError('factor must be a finite number >= 1');
+  if (!(threshold > 0 && threshold <= 1)) throw new RangeError('threshold must be in (0, 1]');
+  if (!(Number.isFinite(minSamples) && minSamples >= 0)) throw new RangeError('minSamples must be a non-negative finite number');
   const total = hits + misses;
   if (total < minSamples || hits / total < threshold) return ttlMs;
   return Math.min(Math.max(maxTtlMs, ttlMs), ttlMs * factor);
@@ -12,6 +15,7 @@ export function adaptTtl({ ttlMs, hits = 0, misses = 0, minSamples = 5, threshol
 export function createCache({ ttlMs, now = Date.now, maxEntries = Infinity, adaptive = false, maxTtlMs, minSamples, threshold, factor } = {}) {
   if (!(Number.isFinite(ttlMs) && ttlMs > 0)) throw new RangeError('ttlMs must be a positive finite number');
   if (!(maxEntries === Infinity || (Number.isInteger(maxEntries) && maxEntries > 0))) throw new RangeError('maxEntries must be a positive integer');
+  if (adaptive) adaptTtl({ ttlMs, maxTtlMs, minSamples, threshold, factor }); // validate options eagerly
   // Map iteration order = recency order (oldest first).
   const entries = new Map();
   // Per-key hit/miss history; survives expiry so adaptation can learn.
@@ -27,6 +31,7 @@ export function createCache({ ttlMs, now = Date.now, maxEntries = Infinity, adap
   };
 
   return {
+    // Returns undefined on a miss, so a cached undefined value is indistinguishable from one.
     get(key) {
       const e = entries.get(key);
       if (e && e.expiresAt > now()) {

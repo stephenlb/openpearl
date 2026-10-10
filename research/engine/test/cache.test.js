@@ -67,3 +67,40 @@ test('validates options', () => {
   assert.throws(() => createCache({ ttlMs: 0 }), RangeError);
   assert.throws(() => createCache({ ttlMs: 1, maxEntries: 0 }), RangeError);
 });
+
+test('adaptTtl rejects invalid options', () => {
+  assert.throws(() => adaptTtl({ ttlMs: 0 }), RangeError);
+  assert.throws(() => adaptTtl({ ttlMs: 10, factor: 0.5 }), RangeError);
+  assert.throws(() => adaptTtl({ ttlMs: 10, factor: NaN }), RangeError);
+  assert.throws(() => adaptTtl({ ttlMs: 10, threshold: 0 }), RangeError);
+  assert.throws(() => adaptTtl({ ttlMs: 10, threshold: 1.5 }), RangeError);
+  assert.throws(() => createCache({ ttlMs: 10, adaptive: true, factor: -1 }), RangeError);
+});
+
+test('adaptive ttl is capped by maxTtlMs', () => {
+  const now = clock();
+  const c = createCache({ ttlMs: 100, now, adaptive: true, minSamples: 2, factor: 4, maxTtlMs: 200 });
+  c.set('a', 1);
+  c.get('a'); c.get('a'); c.get('a');
+  c.set('a', 1);
+  now.adv(199);
+  assert.equal(c.get('a'), 1);
+  now.adv(1);
+  assert.equal(c.get('a'), undefined);
+});
+
+test('set on existing key refreshes recency', () => {
+  const c = createCache({ ttlMs: 100, now: clock(), maxEntries: 2 });
+  c.set('a', 1);
+  c.set('b', 2);
+  c.set('a', 3);
+  c.set('c', 4);
+  assert.equal(c.get('b'), undefined);
+  assert.equal(c.get('a'), 3);
+});
+
+test('history is bounded', () => {
+  const c = createCache({ ttlMs: 100, now: clock(), adaptive: true, minSamples: 1 });
+  for (let i = 0; i < 2000; i++) c.get(`k${i}`);
+  assert.equal(c.stats().misses, 2000);
+});
