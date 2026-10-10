@@ -7,6 +7,11 @@
 // reported as resumed; one that throws keeps its checkpoint (so a later run can
 // retry) and is reported as failed with the error. Returns
 // `{ resumed: [key], failed: [{ key, error }], skipped: [key] }`.
+//
+// Delivery is at-least-once: if `store.clear` throws after the handler
+// succeeded (or the process crashes between the two), the job is reported as
+// failed and its checkpoint stays, so the handler runs again next time.
+// Handlers must therefore be idempotent.
 export async function resumeJobs(store, handlers) {
   if (!store || typeof store.keys !== 'function' || typeof store.load !== 'function') {
     throw new TypeError('store must provide keys() and load()');

@@ -60,3 +60,29 @@ test('inherited handler names are ignored; bad args throw', async () => {
   await assert.rejects(resumeJobs({}, {}), TypeError);
   await assert.rejects(resumeJobs(s, null), TypeError);
 });
+
+test('store keys() preserves insertion order and empties after clear', () => {
+  const s = createCheckpointStore();
+  assert.deepEqual(s.keys(), []);
+  s.save('b', { type: 'x' });
+  s.save('a', { type: 'x' });
+  assert.deepEqual(s.keys(), ['b', 'a']);
+  s.clear('b');
+  assert.deepEqual(s.keys(), ['a']);
+  s.clear('a');
+  assert.deepEqual(s.keys(), []);
+});
+
+test('clear failure after handler success reports failed and keeps checkpoint', async () => {
+  const s = createCheckpointStore();
+  s.save('a', { type: 'copy' });
+  const diskFull = new Error('disk full');
+  const store = { keys: () => s.keys(), load: (k) => s.load(k), clear: () => { throw diskFull; } };
+  let runs = 0;
+  const handlers = { copy: async () => { runs++; } };
+  const r = await resumeJobs(store, handlers);
+  assert.deepEqual(r, { resumed: [], failed: [{ key: 'a', error: diskFull }], skipped: [] });
+  assert.ok(s.load('a'));
+  await resumeJobs(store, handlers);
+  assert.equal(runs, 2);
+});
