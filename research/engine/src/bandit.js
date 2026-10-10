@@ -33,10 +33,14 @@ export function sampleBeta(a, b, rng) {
 export function createBandit(arms, { mode = 'epsilon', epsilon = 0.1, rng = seededRng(1) } = {}) {
   if (!Array.isArray(arms) || arms.length === 0) throw new Error('arms must be a non-empty array');
   if (mode !== 'epsilon' && mode !== 'thompson') throw new Error(`unknown mode: ${mode}`);
+  if (!(Number.isFinite(epsilon) && epsilon >= 0 && epsilon <= 1)) throw new RangeError('epsilon must be in [0, 1]');
+  if (new Set(arms.map(String)).size !== arms.length) throw new Error('arms must be unique');
   const stats = new Map(arms.map((a) => [a, { pulls: 0, total: 0 }]));
 
   const mean = (s) => (s.pulls ? s.total / s.pulls : 0);
 
+  // choose() does not record a pull; only reward() does, so repeated choose()
+  // calls without rewards in epsilon mode keep returning the same unpulled arm.
   function choose() {
     if (mode === 'thompson') {
       let best = arms[0];
