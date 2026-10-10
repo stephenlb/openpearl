@@ -22,3 +22,4 @@ export { draftIssues, failureSignature } from './issuedraft.js';
 export { createBandit, sampleBeta } from './bandit.js';
 export { createLedger } from './ledger.js';
 export { measureSource, scanDir } from './quality.js';
+export { runImprovementCycle } from './loop.js';
