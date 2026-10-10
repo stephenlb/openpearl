@@ -532,6 +532,8 @@ jobs:
             resync() {
               local before
               before=$(git rev-parse HEAD)
+              # Drop tracked changes left by npm ci/install (e.g. package-lock.json) so the merge can run
+              git reset --hard HEAD || return 1
               gitx fetch origin "$BASE" || return 1
               if ! git merge --no-edit "origin/$BASE"; then
                 git diff --name-only --diff-filter=U > "$RUNNER_TEMP/conflicts.txt"
@@ -561,8 +563,12 @@ jobs:
               issue-say --body "Merge retry $attempt/2: re-synced with $BASE"
               attempt=$((attempt + 1))
               # Give the new commit's checks time to register before watching again
-              sleep 15
-              check_count=$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup | length')
+              # (a PR that had checks before must show them again before we watch/merge)
+              for _ in 1 2 3 4 5 6 7 8; do
+                sleep 15
+                check_count=$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup | length')
+                [ "$check_count" != "0" ] && break
+              done
             done
             if [ "$merged" = "true" ]; then
               # explicit empty --body drops the auto-generated Co-authored-by trailer
