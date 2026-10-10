@@ -13,7 +13,8 @@ function normalize(text) {
 export function failureSignature(event) {
   if (typeof event?.signature === 'string' && event.signature !== '') return event.signature;
   const kind = event?.code ?? event?.name ?? 'Error';
-  const msg = normalize(event?.message ?? event?.error?.message ?? event?.error);
+  const err = event?.error;
+  const msg = normalize(event?.message ?? err?.message ?? (typeof err === 'string' ? err : ''));
   return msg ? `${kind}: ${msg}` : String(kind);
 }
 
@@ -28,7 +29,7 @@ export function draftIssues(events, { minCount = 3 } = {}) {
     let g = groups.get(sig);
     if (!g) groups.set(sig, (g = { events: [], tasks: new Set() }));
     g.events.push(ev);
-    if (ev?.task !== undefined) g.tasks.add(String(ev.task));
+    if (ev?.task != null) g.tasks.add(String(ev.task));
   }
   return [...groups.entries()]
     .filter(([, g]) => g.events.length >= minCount)
@@ -38,12 +39,20 @@ export function draftIssues(events, { minCount = 3 } = {}) {
       const lines = [
         `Recurring failure observed ${g.events.length} times.`,
         '',
-        `Signature: \`${sig}\``,
+        `Signature: \`${sig.replace(/`/g, "'")}\``,
       ];
       if (g.tasks.size) lines.push(`Affected tasks: ${[...g.tasks].sort().join(', ')}`);
-      const sample = g.events[0];
-      const msg = sample?.message ?? sample?.error?.message;
-      if (msg) lines.push('', 'Example message:', '```', String(msg), '```');
+      const msgs = g.events
+        .map((e) => e?.message ?? e?.error?.message)
+        .filter((m) => m !== undefined && m !== null && m !== '')
+        .map(String)
+        .sort();
+      if (msgs.length) {
+        const msg = msgs[0];
+        const longest = Math.max(0, ...(msg.match(/`+/g) ?? []).map((r) => r.length));
+        const fence = '`'.repeat(Math.max(3, longest + 1));
+        lines.push('', 'Example message:', fence, msg, fence);
+      }
       return {
         title: `[failure] ${label}`,
         body: lines.join('\n'),
