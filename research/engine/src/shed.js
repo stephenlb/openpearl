@@ -1,10 +1,11 @@
 // Load shedder. Tracks queue depth (admit() ... done()) and an EWMA of observed
 // latency. Load = max(depth / maxQueue, latency / maxLatencyMs). Below 1 all work
-// is admitted; above it the lowest priorities are rejected first: with `priority`
-// levels (0 = lowest, levels - 1 = highest), levels below
+// is admitted; at or above 1 the lowest priorities are rejected first: with
+// `priority` levels (0 = lowest, levels - 1 = highest), levels below
 // 1 + floor((load - 1) * levels) are shed, capped at levels - 1 so the top level
-// is always admitted (this keeps latency observable and lets the EWMA recover). admit() is non-blocking and returns
-// { admitted, reason?, load }. Deterministic: no clock or RNG needed.
+// is always admitted (this keeps latency observable and lets the EWMA recover).
+// admit() is non-blocking and returns { admitted, reason?, load }.
+// Deterministic: no clock or RNG needed.
 export function createShedder({ maxQueue, maxLatencyMs = Infinity, priority = 3, alpha = 0.2 } = {}) {
   if (!(Number.isInteger(maxQueue) && maxQueue >= 1)) throw new RangeError('maxQueue must be a positive integer');
   if (!(maxLatencyMs > 0)) throw new RangeError('maxLatencyMs must be > 0');
