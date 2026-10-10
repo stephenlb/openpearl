@@ -34,5 +34,6 @@ export { createBudget } from './budget.js';
 export { createProfiler } from './profile.js';
 export { createEngine } from './engine.js';
 export { simulate } from './sim.js';
+export { barChart, lineChart } from './svg.js';
 export { loadScenarios, getScenario, validateScenario, validateScenarios } from './scenarios.js';
 export { scorecard, renderMarkdown as renderScorecard, WEIGHTS as SCORECARD_WEIGHTS } from './scorecard.js';
