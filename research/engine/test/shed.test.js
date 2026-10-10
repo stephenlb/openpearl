@@ -18,7 +18,7 @@ test('sheds lowest priority first as queue grows', () => {
   assert.equal(s.admit(2).admitted, true); // load 4/3 -> cutoff 2
   assert.equal(s.admit(1).admitted, false);
   assert.equal(s.depth, 5);
-  assert.equal(s.admit(2).admitted, false); // load 5/3 -> cutoff 3: everything shed
+  assert.equal(s.admit(2).admitted, true); // load 5/3 -> top level is never shed
 });
 
 test('done frees capacity', () => {
