@@ -121,3 +121,59 @@ test('invalid retries falls back to default', async () => {
   assert.equal(calls, 4);
   assert.equal(res.attempts, 4);
 });
+
+const permanent = () => Object.assign(new Error('missing'), { code: 'ENOENT' });
+
+test('non-retryable error stops immediately', async () => {
+  const sleeps = [];
+  let calls = 0;
+  const res = await runTask(
+    () => {
+      calls++;
+      throw permanent();
+    },
+    { retries: 5, delayMs: 3, sleep: (ms) => sleeps.push(ms) },
+  );
+  assert.equal(calls, 1);
+  assert.equal(res.ok, false);
+  assert.equal(res.attempts, 1);
+  assert.equal(res.error.code, 'ENOENT');
+  assert.deepEqual(sleeps, []);
+});
+
+test('retryable error is retried', async () => {
+  let calls = 0;
+  const res = await runTask(
+    () => {
+      if (++calls < 3) throw Object.assign(new Error('reset'), { code: 'ECONNRESET' });
+      return 'ok';
+    },
+    { sleep: () => {} },
+  );
+  assert.deepEqual(res, { ok: true, value: 'ok', attempts: 3 });
+});
+
+test('stops once a retryable error turns permanent', async () => {
+  let calls = 0;
+  const res = await runTask(
+    () => {
+      throw ++calls < 2 ? Object.assign(new Error('x'), { code: 'ETIMEDOUT' }) : permanent();
+    },
+    { sleep: () => {} },
+  );
+  assert.equal(res.attempts, 2);
+  assert.equal(res.error.code, 'ENOENT');
+});
+
+test('retryAll retries non-retryable errors', async () => {
+  let calls = 0;
+  const res = await runTask(
+    () => {
+      calls++;
+      throw permanent();
+    },
+    { retries: 2, retryAll: true, sleep: () => {} },
+  );
+  assert.equal(calls, 3);
+  assert.equal(res.attempts, 3);
+});

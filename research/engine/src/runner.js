@@ -1,11 +1,21 @@
+import { classifyError } from './classify.js';
+
 const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Only errors positively classified as non-retryable (`permanent`) are fatal;
+// `unknown` errors are still retried.
+function isFatal(err) {
+  const { class: kind, retryable } = classifyError(err);
+  return !retryable && kind !== 'unknown';
+}
 
 /**
  * Run `fn` and retry on thrown errors (or rejections).
  * `retries` is the number of retries after the first attempt.
+ * Permanent errors stop immediately unless `retryAll` is true.
  * Returns `{ok: true, value, attempts}` or `{ok: false, error, attempts}`.
  */
-export async function runTask(fn, { retries = 3, delayMs = 0, sleep = defaultSleep, onAttempt } = {}) {
+export async function runTask(fn, { retries = 3, delayMs = 0, sleep = defaultSleep, onAttempt, retryAll = false } = {}) {
   const maxAttempts = (Number.isFinite(retries) ? Math.max(0, retries) : 3) + 1;
   // A misbehaving observer must not affect the task outcome.
   const notify = (info) => {
@@ -25,6 +35,7 @@ export async function runTask(fn, { retries = 3, delayMs = 0, sleep = defaultSle
     } catch (err) {
       error = err;
       notify({ attempt: attempts, ok: false, error: err });
+      if (!retryAll && isFatal(err)) break;
       if (attempts < maxAttempts && delayMs > 0) await sleep(delayMs);
       continue;
     }
