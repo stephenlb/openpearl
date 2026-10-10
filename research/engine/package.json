@@ -4,6 +4,7 @@
   "description": "Zero-dependency engine for the OpenPearl self-healing research benchmark",
   "type": "module",
   "main": "src/index.js",
+  "bin": { "pearl": "./bin/pearl.js" },
   "exports": "./src/index.js",
   "engines": { "node": ">=22" },
   "scripts": { "test": "node --test test" },
