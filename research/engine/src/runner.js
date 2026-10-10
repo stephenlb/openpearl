@@ -1,4 +1,5 @@
 import { classifyError } from './classify.js';
+import { withTimeout } from './timeout.js';
 
 const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -17,11 +18,15 @@ function isFatal(err) {
  * Run `fn` and retry on thrown errors (or rejections).
  * `retries` is the number of retries after the first attempt.
  * Permanent errors stop immediately unless `retryAll` is true.
+ * `timeoutMs` (positive number) bounds each attempt via `withTimeout`; a timed-out
+ * attempt rejects with a retryable `TimeoutError`. `setTimer`/`clearTimer` are injectable.
+ * Timed-out attempts are abandoned, not cancelled: `fn` gets no `AbortSignal`, so the
+ * earlier attempt may still be running when the retry starts. Keep `fn` idempotent.
  * `onGiveUp({attempts, error})` is called once when the task fails for good
  * (retries exhausted or a permanent error); errors it throws are ignored.
  * Returns `{ok: true, value, attempts}` or `{ok: false, error, attempts}`.
  */
-export async function runTask(fn, { retries = 3, delayMs = 0, sleep = defaultSleep, onAttempt, onGiveUp, retryAll = false } = {}) {
+export async function runTask(fn, { retries = 3, delayMs = 0, sleep = defaultSleep, onAttempt, onGiveUp, retryAll = false, timeoutMs, setTimer, clearTimer } = {}) {
   const maxAttempts = (Number.isFinite(retries) ? Math.max(0, retries) : 3) + 1;
   // A misbehaving observer must not affect the task outcome.
   const notify = (info) => {
@@ -31,13 +36,18 @@ export async function runTask(fn, { retries = 3, delayMs = 0, sleep = defaultSle
       // ignored
     }
   };
+  const useTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0;
+  const timerOpts = {};
+  if (setTimer) timerOpts.setTimer = setTimer;
+  if (clearTimer) timerOpts.clearTimer = clearTimer;
   let attempts = 0;
   let error;
   while (attempts < maxAttempts) {
     attempts++;
     let value;
     try {
-      value = await fn(attempts);
+      const attempt = attempts;
+      value = useTimeout ? await withTimeout(() => fn(attempt), timeoutMs, timerOpts) : await fn(attempt);
     } catch (err) {
       error = err;
       notify({ attempt: attempts, ok: false, error: err });
