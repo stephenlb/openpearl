@@ -28,7 +28,7 @@ test('a sustained latency shift is absorbed and growth resumes', () => {
   const l = createLimiter({ min: 1, max: 100, start: 4 });
   l.acquire(); l.release(true, 100);
   for (let i = 0; i < 100; i++) { l.acquire(); l.release(true, 400); }
-  assert.ok(l.limit > 2);
+  assert.ok(l.limit >= 4);
 });
 
 test('a burst of simultaneous failures decreases once', () => {
@@ -41,8 +41,28 @@ test('a burst of simultaneous failures decreases once', () => {
 
 test('invalid latency throws', () => {
   const l = createLimiter({ min: 1, max: 4 });
+  const t = l.acquire();
+  assert.throws(() => l.release(true, NaN, t), RangeError);
+  assert.equal(l.inFlight, 1);
+  l.release(true, 10, t);
+  assert.equal(l.inFlight, 0);
+});
+
+test('release with unknown token throws', () => {
+  const l = createLimiter({ min: 1, max: 4 });
   l.acquire();
-  assert.throws(() => l.release(true, NaN), RangeError);
+  assert.throws(() => l.release(true, 10, {}), /unknown token/);
+  assert.equal(l.inFlight, 1);
+});
+
+test('a failure from a request acquired after a decrease decreases again', () => {
+  const l = createLimiter({ min: 1, max: 100, start: 8 });
+  const a = l.acquire();
+  l.release(false, undefined, a);
+  assert.equal(l.limit, 4);
+  const b = l.acquire();
+  l.release(false, undefined, b);
+  assert.equal(l.limit, 2);
 });
 
 test('additive increase: one step per limit successes, capped at max', () => {

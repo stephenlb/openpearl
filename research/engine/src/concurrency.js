@@ -37,9 +37,10 @@ export function createLimiter({ min = 1, max = 100, start = min, backoff = 0.5, 
       if (inflight.length === 0) throw new Error('release() without matching acquire()');
       const i = token === undefined ? 0 : inflight.indexOf(token);
       if (i < 0) throw new Error('release() with unknown token');
-      const [t] = inflight.splice(i, 1);
+      const t = inflight[i];
       const latency = latencyMs ?? now() - t.began;
       if (!(Number.isFinite(latency) && latency >= 0)) throw new RangeError('latency must be a non-negative finite number');
+      inflight.splice(i, 1);
       if (!ok) { decrease(t); return; }
       const spike = baseline !== null && latency > spikeFactor * baseline;
       // Spikes feed the baseline too, so a permanent latency shift is eventually accepted.
