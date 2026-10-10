@@ -60,3 +60,9 @@ test('classifyError returns a fresh object each call', () => {
   a.retryable = true;
   assert.equal(classifyError(new Error('x')).retryable, false);
 });
+
+test('BreakerOpenError is permanent', () => {
+  const err = new Error('open');
+  err.name = 'BreakerOpenError';
+  assert.deepEqual(classifyError(err), { class: 'permanent', retryable: false });
+});

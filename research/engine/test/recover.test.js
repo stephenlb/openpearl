@@ -1,53 +1,88 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { createCheckpointStore, resumeJobs } from '../src/index.js';
 
-test('resumes unfinished jobs and clears them', async () => {
-  const store = createCheckpointStore();
-  store.save('a', { handler: 'copy', step: 2 });
-  store.save('b', { handler: 'copy', done: true });
+test('resumes unfinished jobs, skips done/unknown, reports failures', async () => {
+  const s = createCheckpointStore();
+  s.save('a', { type: 'copy', step: 2 });
+  s.save('b', { type: 'copy', done: true });
+  s.save('c', { type: 'mystery' });
+  s.save('d', { type: 'bad' });
   const seen = [];
-  const r = await resumeJobs(store, { copy: (s, k) => { seen.push([k, s.step]); } });
-  assert.deepEqual(r, { resumed: ['a'], failed: [], skipped: [] });
+  const boom = new Error('boom');
+  const r = await resumeJobs(s, {
+    copy: async (st, key) => { seen.push([key, st.step]); },
+    bad: () => { throw boom; },
+  });
   assert.deepEqual(seen, [['a', 2]]);
-  assert.equal(store.load('a'), undefined);
-  assert.deepEqual(store.load('b'), { handler: 'copy', done: true });
+  assert.deepEqual(r, { resumed: ['a'], failed: [{ key: 'd', error: boom }], skipped: ['b', 'c'] });
+  assert.equal(s.load('a'), undefined);
+  assert.ok(s.load('d'));
+  assert.ok(s.load('c'));
 });
 
-test('failed handlers keep checkpoint; unknown handlers are skipped', async () => {
-  const store = createCheckpointStore();
-  store.save('a', { handler: 'boom' });
-  store.save('b', { handler: 'nope' });
-  store.save('c', { handler: 'ok' });
-  const err = new Error('x');
-  const r = await resumeJobs(store, { boom: () => { throw err; }, ok: async () => {} });
-  assert.deepEqual(r, { resumed: ['c'], failed: [{ key: 'a', error: err }], skipped: ['b'] });
-  assert.ok(store.load('a') && store.load('b'));
+test('simulated crash mid-job: second process resumes from file', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pearl-recover-'));
+  const file = path.join(dir, 'ckpt.json');
+  try {
+    const s1 = createCheckpointStore({ path: file });
+    s1.save('job1', { type: 'sum', i: 3, acc: 6 });
+    // crash: process dies before the job finishes or clears its checkpoint
+    const s2 = createCheckpointStore({ path: file });
+    let result;
+    const r = await resumeJobs(s2, {
+      sum: (st) => { result = st.acc + st.i; },
+    });
+    assert.equal(result, 9);
+    assert.deepEqual(r.resumed, ['job1']);
+    assert.equal(createCheckpointStore({ path: file }).load('job1'), undefined);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
-test('simulated crash mid-job then recovery from file', async () => {
-  const files = new Map();
-  const fs = {
-    readFileSync(p) {
-      if (!files.has(p)) throw Object.assign(new Error('nf'), { code: 'ENOENT' });
-      return files.get(p);
-    },
-    writeFileSync(p, t) { files.set(p, t); },
-    renameSync(a, b) { files.set(b, files.get(a)); files.delete(a); },
-    mkdirSync() {},
-  };
-  const store1 = createCheckpointStore({ path: '/tmp/cp.json', fs });
-  store1.save('job1', { handler: 'work', step: 1 });
-  // crash: the process dies mid-job; a fresh store reopens the same file
-  const store2 = createCheckpointStore({ path: '/tmp/cp.json', fs });
-  let ran = 0;
-  const handlers = { work: (s) => { ran += s.step; } };
-  assert.deepEqual((await resumeJobs(store2, handlers)).resumed, ['job1']);
-  assert.equal(ran, 1);
-  const store3 = createCheckpointStore({ path: '/tmp/cp.json', fs });
-  assert.deepEqual(await resumeJobs(store3, handlers), { resumed: [], failed: [], skipped: [] });
+test('failed job is retried on the next run', async () => {
+  const s = createCheckpointStore();
+  s.save('j', { type: 't' });
+  let n = 0;
+  const handlers = { t: () => { if (++n === 1) throw new Error('crash'); } };
+  assert.equal((await resumeJobs(s, handlers)).failed.length, 1);
+  assert.deepEqual((await resumeJobs(s, handlers)).resumed, ['j']);
 });
 
-test('rejects invalid store', async () => {
+test('inherited handler names are ignored; bad args throw', async () => {
+  const s = createCheckpointStore();
+  s.save('j', { type: 'toString' });
+  assert.deepEqual((await resumeJobs(s, {})).skipped, ['j']);
   await assert.rejects(resumeJobs({}, {}), TypeError);
+  await assert.rejects(resumeJobs(s, null), TypeError);
+});
+
+test('store keys() preserves insertion order and empties after clear', () => {
+  const s = createCheckpointStore();
+  assert.deepEqual(s.keys(), []);
+  s.save('b', { type: 'x' });
+  s.save('a', { type: 'x' });
+  assert.deepEqual(s.keys(), ['b', 'a']);
+  s.clear('b');
+  assert.deepEqual(s.keys(), ['a']);
+  s.clear('a');
+  assert.deepEqual(s.keys(), []);
+});
+
+test('clear failure after handler success reports failed and keeps checkpoint', async () => {
+  const s = createCheckpointStore();
+  s.save('a', { type: 'copy' });
+  const diskFull = new Error('disk full');
+  const store = { keys: () => s.keys(), load: (k) => s.load(k), clear: () => { throw diskFull; } };
+  let runs = 0;
+  const handlers = { copy: async () => { runs++; } };
+  const r = await resumeJobs(store, handlers);
+  assert.deepEqual(r, { resumed: [], failed: [{ key: 'a', error: diskFull }], skipped: [] });
+  assert.ok(s.load('a'));
+  await resumeJobs(store, handlers);
+  assert.equal(runs, 2);
 });
