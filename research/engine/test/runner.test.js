@@ -95,6 +95,20 @@ test('throwing onAttempt does not re-run a succeeded task', async () => {
   assert.deepEqual(res, { ok: true, value: 1, attempts: 1 });
 });
 
+test('rejecting async onAttempt does not cause an unhandled rejection', async () => {
+  const unhandled = [];
+  const handler = (e) => unhandled.push(e);
+  process.on('unhandledRejection', handler);
+  try {
+    const res = await runTask(() => 1, { onAttempt: async () => { throw new Error('cb'); } });
+    await new Promise((r) => setTimeout(r, 10));
+    assert.deepEqual(res, { ok: true, value: 1, attempts: 1 });
+    assert.equal(unhandled.length, 0);
+  } finally {
+    process.off('unhandledRejection', handler);
+  }
+});
+
 test('invalid retries falls back to default', async () => {
   let calls = 0;
   const res = await runTask(

@@ -10,7 +10,7 @@ export async function runTask(fn, { retries = 3, delayMs = 0, sleep = defaultSle
   // A misbehaving observer must not affect the task outcome.
   const notify = (info) => {
     try {
-      if (onAttempt) onAttempt(info);
+      if (onAttempt) Promise.resolve(onAttempt(info)).catch(() => {});
     } catch {
       // ignored
     }
