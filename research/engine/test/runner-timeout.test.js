@@ -30,3 +30,28 @@ test('timeoutMs: fast task is unaffected', async () => {
   const res = await runTask(() => 7, { timeoutMs: 1000 });
   assert.deepEqual(res, { ok: true, value: 7, attempts: 1 });
 });
+
+test('timeoutMs: invalid values disable the timeout', async () => {
+  for (const timeoutMs of [0, -5, NaN]) {
+    let armed = 0;
+    const res = await runTask(() => 'v', { timeoutMs, setTimer: () => { armed++; return 0; }, clearTimer: () => {} });
+    assert.deepEqual(res, { ok: true, value: 'v', attempts: 1 });
+    assert.equal(armed, 0);
+  }
+});
+
+test('timeoutMs: permanent error stops without retry', async () => {
+  const err = new Error('open');
+  err.name = 'BreakerOpenError';
+  const res = await runTask(() => { throw err; }, { timeoutMs: 1000, retries: 3 });
+  assert.equal(res.ok, false);
+  assert.equal(res.attempts, 1);
+  assert.equal(res.error, err);
+});
+
+test('timeoutMs: timer is cleared after a fast success', async () => {
+  const cleared = [];
+  const res = await runTask(() => 1, { timeoutMs: 50, setTimer: () => 42, clearTimer: (h) => cleared.push(h) });
+  assert.equal(res.ok, true);
+  assert.deepEqual(cleared, [42]);
+});

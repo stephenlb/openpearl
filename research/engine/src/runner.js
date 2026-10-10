@@ -20,6 +20,8 @@ function isFatal(err) {
  * Permanent errors stop immediately unless `retryAll` is true.
  * `timeoutMs` (positive number) bounds each attempt via `withTimeout`; a timed-out
  * attempt rejects with a retryable `TimeoutError`. `setTimer`/`clearTimer` are injectable.
+ * Timed-out attempts are abandoned, not cancelled: `fn` gets no `AbortSignal`, so the
+ * earlier attempt may still be running when the retry starts. Keep `fn` idempotent.
  * Returns `{ok: true, value, attempts}` or `{ok: false, error, attempts}`.
  */
 export async function runTask(fn, { retries = 3, delayMs = 0, sleep = defaultSleep, onAttempt, retryAll = false, timeoutMs, setTimer, clearTimer } = {}) {
