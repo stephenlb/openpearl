@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // pearl CLI. Exit codes: 0 = ok, 1 = invalid input (bad config), 2 = usage error.
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../src/index.js';
 
 const USAGE = 'Usage: pearl <version|health|config <json>>';
@@ -33,7 +34,10 @@ export function run(argv) {
   }
 }
 
-const { code, out, err } = run(process.argv.slice(2));
-if (out !== undefined) process.stdout.write(`${out}\n`);
-if (err !== undefined) process.stderr.write(`${err}\n`);
-process.exitCode = code;
+// Only run as a CLI when executed directly (resolving symlinks, e.g. npm bin links), not when imported.
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
+  const { code, out, err } = run(process.argv.slice(2));
+  if (out !== undefined) process.stdout.write(`${out}\n`);
+  if (err !== undefined) process.stderr.write(`${err}\n`);
+  process.exitCode = code;
+}
