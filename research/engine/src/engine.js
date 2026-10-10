@@ -84,10 +84,13 @@ export function createEngine({
       ...(sleep ? { sleep } : {}),
     });
     const elapsed = Math.max(0, now() - started);
-    limiter.release(result.ok, last.ms, token);
+    // A breaker rejection never ran fn, so it says nothing about the limiter or strategy.
+    const rejected = !result.ok && result.error instanceof BreakerOpenError;
+    if (rejected) limiter.cancel(token);
+    else limiter.release(result.ok, last.ms, token);
     metrics.observe('latencyMs', elapsed);
     metrics.inc(result.ok ? 'success' : 'failure');
-    learner.record({ strategy: name, success: result.ok, costMs: elapsed });
+    if (!rejected) learner.record({ strategy: name, success: result.ok, costMs: elapsed });
     if (result.ok && cache && cacheKey !== undefined) cache.set(cacheKey, { value: result.value });
     return result;
   }

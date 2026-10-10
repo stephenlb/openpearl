@@ -52,6 +52,12 @@ export function createLimiter({ min = 1, max = 100, start = min, backoff = 0.5, 
         limit = Math.min(max, limit + 1);
       }
     },
+    // Frees a token without feeding the limit or baseline (the request never really ran).
+    cancel(token) {
+      const i = inflight.indexOf(token);
+      if (i < 0) throw new Error('cancel() with unknown token');
+      inflight.splice(i, 1);
+    },
     get limit() { return limit; },
     get inFlight() { return inflight.length; },
   };

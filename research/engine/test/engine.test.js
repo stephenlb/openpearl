@@ -132,7 +132,27 @@ test('breaker rejections are not retried or counted as errors', async () => {
   assert.equal(r.ok, false);
   assert.equal(r.attempts, 1);
   assert.equal(sleeps, 0);
-  assert.equal(engine.metrics().counters['breaker.rejected'], 1);
+  // One from the first run's retry, one from the second run.
+  assert.equal(engine.metrics().counters['breaker.rejected'], 2);
+});
+
+test('breaker rejections do not penalize the limiter or learner', async () => {
+  const clock = makeClock();
+  const engine = createEngine({
+    now: clock.now,
+    sleep: noSleep,
+    retries: 0,
+    breaker: { threshold: 1, cooldownMs: 1000 },
+    limiter: { start: 8, max: 8 },
+  });
+  await engine.run('x', async () => { throw new Error('boom'); });
+  const limit = engine.concurrencyLimit();
+  const before = engine.stats('x');
+  const r = await engine.run('x', async () => 1);
+  assert.equal(r.ok, false);
+  assert.equal(r.error.name, 'BreakerOpenError');
+  assert.equal(engine.concurrencyLimit(), limit);
+  assert.deepEqual(engine.stats('x'), before);
 });
 
 test('caches undefined results; cacheKey without a cache just runs', async () => {
