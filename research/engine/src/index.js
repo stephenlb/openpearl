@@ -28,4 +28,5 @@ export { createCache, adaptTtl } from './cache.js';
 export { createLimiter } from './concurrency.js';
 export { tune } from './tuner.js';
 export { bench, compareBench } from './bench.js';
+export { createShedder } from './shed.js';
 export { createBatcher } from './batch.js';
