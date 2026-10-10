@@ -57,3 +57,18 @@ test('explicit signature wins and bad input throws', () => {
   assert.throws(() => draftIssues([], { minCount: 0 }), RangeError);
   assert.deepEqual(draftIssues([]), []);
 });
+
+test('explicit signatures collapse whitespace; string errors give an example message', () => {
+  assert.equal(failureSignature({ signature: ' a\n b\t c ' }), 'a b c');
+  const e = { signature: 'x\ny', error: 'str' };
+  const [d] = draftIssues([e, e, e]);
+  assert.equal(d.title, '[failure] x y');
+  assert.match(d.body, /Signature: `x y`/);
+  assert.match(d.body, /```\nstr\n```/);
+});
+
+test('title truncation does not split surrogate pairs', () => {
+  const long = '😀'.repeat(100);
+  const [d] = draftIssues([ev(long), ev(long), ev(long)]);
+  assert.doesNotMatch(d.title, /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/);
+});

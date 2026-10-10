@@ -10,11 +10,18 @@ function normalize(text) {
     .trim();
 }
 
-export function failureSignature(event) {
-  if (typeof event?.signature === 'string' && event.signature !== '') return event.signature;
-  const kind = event?.code ?? event?.name ?? 'Error';
+function eventMessage(event) {
   const err = event?.error;
-  const msg = normalize(event?.message ?? err?.message ?? (typeof err === 'string' ? err : ''));
+  return event?.message ?? err?.message ?? (typeof err === 'string' ? err : undefined);
+}
+
+export function failureSignature(event) {
+  if (typeof event?.signature === 'string') {
+    const explicit = event.signature.replace(/\s+/g, ' ').trim();
+    if (explicit !== '') return explicit;
+  }
+  const kind = event?.code ?? event?.name ?? 'Error';
+  const msg = normalize(eventMessage(event));
   return msg ? `${kind}: ${msg}` : String(kind);
 }
 
@@ -35,7 +42,8 @@ export function draftIssues(events, { minCount = 3 } = {}) {
     .filter(([, g]) => g.events.length >= minCount)
     .sort(([a, ga], [b, gb]) => gb.events.length - ga.events.length || (a < b ? -1 : a > b ? 1 : 0))
     .map(([sig, g]) => {
-      const label = sig.length > MAX_TITLE ? `${sig.slice(0, MAX_TITLE - 1)}…` : sig;
+      const chars = Array.from(sig);
+      const label = chars.length > MAX_TITLE ? `${chars.slice(0, MAX_TITLE - 1).join('')}…` : sig;
       const lines = [
         `Recurring failure observed ${g.events.length} times.`,
         '',
@@ -43,7 +51,7 @@ export function draftIssues(events, { minCount = 3 } = {}) {
       ];
       if (g.tasks.size) lines.push(`Affected tasks: ${[...g.tasks].sort().join(', ')}`);
       const msgs = g.events
-        .map((e) => e?.message ?? e?.error?.message)
+        .map(eventMessage)
         .filter((m) => m !== undefined && m !== null && m !== '')
         .map(String)
         .sort();
