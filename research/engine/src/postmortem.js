@@ -4,6 +4,8 @@
 // Every event must be an object with a finite numeric `t`.
 // Multi-line strings and objects are JSON-encoded so they cannot break out of their timeline bullet.
 const fmt = (v) => (typeof v === 'object' || (typeof v === 'string' && /[\r\n]/.test(v)) ? JSON.stringify(v) : String(v));
+// Non-object (or array) data is treated as empty; events without a `type` show as 'unknown'.
+const dataOf = (ev) => (ev.data !== null && typeof ev.data === 'object' && !Array.isArray(ev.data) ? ev.data : {});
 
 export function buildPostmortem(events) {
   if (!Array.isArray(events)) throw new TypeError('events must be an array');
@@ -20,10 +22,10 @@ export function buildPostmortem(events) {
   const open = new Map();
   const repairs = [];
   for (const ev of sorted) {
-    const { job: rawJob, class: cls } = ev.data ?? {};
-    const job = rawJob === undefined ? undefined : String(rawJob);
+    const { job: rawJob, class: cls } = dataOf(ev);
+    const job = rawJob === undefined ? undefined : fmt(String(rawJob));
     if (ev.type === 'failure') {
-      const c = cls ?? 'unknown';
+      const c = fmt(cls ?? 'unknown');
       classes.set(c, (classes.get(c) ?? 0) + 1);
       if (job !== undefined) {
         jobs.add(job);
@@ -38,8 +40,8 @@ export function buildPostmortem(events) {
   const lines = ['# Postmortem', '', '## Timeline', ''];
   if (sorted.length === 0) lines.push('_No events._');
   for (const ev of sorted) {
-    const detail = Object.entries(ev.data ?? {}).map(([k, v]) => `${k}=${fmt(v)}`).join(' ');
-    lines.push(`- t=${ev.t} ${fmt(ev.type)}${detail ? ` ${detail}` : ''}`);
+    const detail = Object.entries(dataOf(ev)).map(([k, v]) => `${k}=${fmt(v)}`).join(' ');
+    lines.push(`- t=${ev.t} ${fmt(ev.type ?? 'unknown')}${detail ? ` ${detail}` : ''}`);
   }
 
   lines.push('', '## Root causes', '');

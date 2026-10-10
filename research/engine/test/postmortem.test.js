@@ -88,6 +88,21 @@ test('multi-line and object values cannot inject markdown', () => {
   assert.ok(!out.includes('[object Object]'));
 });
 
+test('newline or object in class and job cannot inject markdown', () => {
+  const out = buildPostmortem([
+    ev(0, 'failure', { class: 'x\n# Injected', job: 'j\n# Job' }),
+    ev(1, 'failure', { class: { a: 1 } }),
+  ]);
+  assert.ok(!out.includes('\n# Injected'));
+  assert.ok(!out.includes('\n# Job'));
+  assert.ok(!out.includes('[object Object]'));
+});
+
+test('non-object data is treated as empty and missing type is labelled', () => {
+  const out = buildPostmortem([{ t: 0, data: 'abc' }]);
+  assert.ok(out.includes('- t=0 unknown\n'));
+});
+
 test('rejects invalid events', () => {
   assert.throws(() => buildPostmortem([null]), TypeError);
   assert.throws(() => buildPostmortem([{ type: 'failure' }]), TypeError);
