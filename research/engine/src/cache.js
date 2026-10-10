@@ -1,5 +1,7 @@
 // TTL + LRU cache with optional per-key adaptive TTL. The clock is injected.
 // adaptTtl() lengthens the TTL of keys whose observed hit rate is high.
+// Expired entries are only removed when read (or evicted by maxEntries), so callers
+// should set maxEntries to bound memory.
 const HISTORY_LIMIT = 1000;
 
 export function adaptTtl({ ttlMs, hits = 0, misses = 0, minSamples = 5, threshold = 0.8, factor = 2, maxTtlMs = ttlMs * 8 } = {}) {
@@ -7,9 +9,10 @@ export function adaptTtl({ ttlMs, hits = 0, misses = 0, minSamples = 5, threshol
   if (!(Number.isFinite(factor) && factor >= 1)) throw new RangeError('factor must be a finite number >= 1');
   if (!(threshold > 0 && threshold <= 1)) throw new RangeError('threshold must be in (0, 1]');
   if (!(Number.isFinite(minSamples) && minSamples >= 0)) throw new RangeError('minSamples must be a non-negative finite number');
+  if (!(Number.isFinite(maxTtlMs) && maxTtlMs >= ttlMs)) throw new RangeError('maxTtlMs must be a finite number >= ttlMs');
   const total = hits + misses;
-  if (total < minSamples || hits / total < threshold) return ttlMs;
-  return Math.min(Math.max(maxTtlMs, ttlMs), ttlMs * factor);
+  if (total === 0 || total < minSamples || hits / total < threshold) return ttlMs;
+  return Math.min(maxTtlMs, ttlMs * factor);
 }
 
 export function createCache({ ttlMs, now = Date.now, maxEntries = Infinity, adaptive = false, maxTtlMs, minSamples, threshold, factor } = {}) {

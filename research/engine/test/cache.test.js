@@ -100,7 +100,22 @@ test('set on existing key refreshes recency', () => {
 });
 
 test('history is bounded', () => {
-  const c = createCache({ ttlMs: 100, now: clock(), adaptive: true, minSamples: 1 });
-  for (let i = 0; i < 2000; i++) c.get(`k${i}`);
-  assert.equal(c.stats().misses, 2000);
+  const now = clock();
+  const c = createCache({ ttlMs: 100, now, adaptive: true, minSamples: 1 });
+  // Build a perfect hit history for 'cold', then push it out with many other keys.
+  c.set('cold', 1);
+  c.get('cold');
+  for (let i = 0; i < 1000; i++) c.get(`k${i}`);
+  c.set('cold', 1);
+  now.adv(101);
+  assert.equal(c.get('cold'), undefined); // base TTL: history was evicted
+});
+
+test('adaptTtl with no samples returns base ttl even when minSamples is 0', () => {
+  assert.equal(adaptTtl({ ttlMs: 100, minSamples: 0 }), 100);
+});
+
+test('adaptTtl validates maxTtlMs', () => {
+  assert.throws(() => adaptTtl({ ttlMs: 100, maxTtlMs: NaN }), RangeError);
+  assert.throws(() => adaptTtl({ ttlMs: 100, maxTtlMs: 50 }), RangeError);
 });
