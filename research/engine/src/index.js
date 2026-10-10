@@ -3,3 +3,4 @@ export { backoffDelay } from './backoff.js';
 export { runTask } from './runner.js';
 export { createBreaker, BreakerOpenError } from './breaker.js';
 export { createEventLog } from './events.js';
+export { createMetrics } from './metrics.js';
