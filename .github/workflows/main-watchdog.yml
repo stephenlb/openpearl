@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: main-watchdog
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   GH_TOKEN: ${{ secrets.PUSH_TOKEN || github.token }}
@@ -49,10 +49,18 @@ jobs:
             exit 0
           fi
           if [ -n "$open" ]; then
+            {
+              echo "Still red at \`$SHA\` ($url)"
+              echo
+              echo '```'
+              tail -n 60 test-output.txt
+              echo '```'
+            } > comment.md
+            gh issue comment "$open" --body-file comment.md
             exit 0
           fi
           gh label create main-red --description "main is failing npm test" --color B60205 || true
-          name=$(grep -m1 -E '^\s*(not ok|✖|×)' test-output.txt | sed -E 's/^\s*(not ok [0-9]+ -?|✖|×)\s*//' | cut -c1-80 || true)
+          name=$(grep -E '^\s*(not ok|✖|×)' test-output.txt | grep -viE '(failing tests|tests? failed):?\s*$' | head -n1 | sed -E 's/^\s*(not ok [0-9]+ -?|✖|×)\s*//' | cut -c1-80 || true)
           [ -n "$name" ] || name="npm test failed"
           {
             echo "Commit: \`$SHA\` ($url)"
