@@ -32,6 +32,7 @@ export { createShedder } from './shed.js';
 export { createBatcher } from './batch.js';
 export { createBudget } from './budget.js';
 export { createProfiler } from './profile.js';
+export { createEventLog } from './events.js';
 export { createEngine } from './engine.js';
 export { simulate } from './sim.js';
 export { barChart, lineChart } from './svg.js';
