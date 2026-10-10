@@ -26,3 +26,4 @@ export { runImprovementCycle } from './loop.js';
 export { createTimeoutEstimator } from './adaptive-timeout.js';
 export { createCache, adaptTtl } from './cache.js';
 export { createLimiter } from './concurrency.js';
+export { bench, compareBench } from './bench.js';
