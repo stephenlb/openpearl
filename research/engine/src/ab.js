@@ -3,7 +3,8 @@
 // success rate (b - a); `z` is the pooled two-proportion z statistic and `p`
 // the two-sided p-value from the normal approximation. Decision: 'adopt' if b
 // is significantly better at `alpha`, 'reject' if significantly worse, else
-// 'inconclusive' (including empty arms or zero variance).
+// 'inconclusive' (including empty arms or zero variance). An empty arm has a
+// NaN rate, and `lift` is NaN if either arm is empty.
 const ALPHA = 0.05;
 
 // Complementary error function (Numerical Recipes erfcc, |err| < 1.2e-7).
@@ -25,8 +26,8 @@ function tally(arm, name) {
 export function compareArms(a, b, { alpha = ALPHA } = {}) {
   const A = tally(a, 'a');
   const B = tally(b, 'b');
-  const rateA = A.n ? A.successes / A.n : 0;
-  const rateB = B.n ? B.successes / B.n : 0;
+  const rateA = A.n ? A.successes / A.n : NaN;
+  const rateB = B.n ? B.successes / B.n : NaN;
   const lift = rateB - rateA;
   const n = A.n + B.n;
   const pooled = n ? (A.successes + B.successes) / n : 0;

@@ -38,3 +38,11 @@ test('degenerate inputs are inconclusive', () => {
   assert.equal(compareArms(arm(0, 10), arm(0, 10)).p, 1);
   assert.throws(() => compareArms(null, []), TypeError);
 });
+
+test('an empty arm has NaN rate and lift', () => {
+  const r = compareArms([], [true, true]);
+  assert.ok(Number.isNaN(r.rateA));
+  assert.equal(r.rateB, 1);
+  assert.ok(Number.isNaN(r.lift));
+  assert.equal(r.decision, 'inconclusive');
+});
