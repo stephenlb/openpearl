@@ -34,3 +34,19 @@ test('empty input and determinism', () => {
   assert.equal(barChart(d), barChart(d));
   assert.equal(escapeXml("'"), '&apos;');
 });
+
+test('width/height are coerced and cannot inject attributes', () => {
+  const svg = barChart([{ label: 'a', value: 1 }], { width: '1" onload="x', height: 5 });
+  assert.ok(!svg.includes('onload'));
+  assert.ok(!/(width|height)="-/.test(svg));
+  assert.ok(barChart([], { width: 600 }).includes('width="600"'));
+});
+
+test('non-finite values are dropped and negatives clamped', () => {
+  const bar = barChart([{ label: 'a', value: NaN }, { label: 'b', value: -3 }, { label: 'c', value: 2 }]);
+  assert.ok(!bar.includes('NaN'));
+  assert.equal((bar.match(/class="bar"/g) || []).length, 2);
+  const line = lineChart([{ name: 's', points: [{ x: 0, y: -5 }, { x: 1, y: undefined }, { x: 2, y: 4 }] }]);
+  assert.ok(!line.includes('NaN'));
+  assert.equal(line.match(/points="([^"]*)"/)[1].split(' ').length, 2);
+});

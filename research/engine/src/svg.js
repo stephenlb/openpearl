@@ -13,9 +13,13 @@ export function escapeXml(value) {
 const num = (n) => String(Math.round(n * 100) / 100);
 
 function layout(opts) {
-  const width = opts.width ?? 480;
-  const height = opts.height ?? 320;
   const m = { top: 36, right: 16, bottom: 48, left: 56 };
+  const dim = (v, def, min) => {
+    const n = Number(v ?? def);
+    return Number.isFinite(n) ? Math.max(min, Math.round(n)) : def;
+  };
+  const width = dim(opts.width, 480, m.left + m.right + 1);
+  const height = dim(opts.height, 320, m.top + m.bottom + 1);
   return { width, height, m, pw: width - m.left - m.right, ph: height - m.top - m.bottom };
 }
 
@@ -61,7 +65,8 @@ function yTicks(L, max, ticks = 5) {
 }
 
 /** data: [{label, value}] */
-export function barChart(data = [], opts = {}) {
+export function barChart(rawData = [], opts = {}) {
+  const data = rawData.filter((d) => Number.isFinite(d.value));
   const L = layout(opts);
   const { m, pw, ph } = L;
   const max = niceMax(Math.max(0, ...data.map((d) => d.value)));
@@ -77,7 +82,11 @@ export function barChart(data = [], opts = {}) {
 }
 
 /** series: [{name, points: [{x, y}]}] */
-export function lineChart(series = [], opts = {}) {
+export function lineChart(rawSeries = [], opts = {}) {
+  const series = rawSeries.map((s) => ({
+    ...s,
+    points: s.points.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y)),
+  }));
   const L = layout(opts);
   const { m, pw, ph } = L;
   const all = series.flatMap((s) => s.points);
@@ -88,7 +97,7 @@ export function lineChart(series = [], opts = {}) {
   const max = niceMax(Math.max(0, ...all.map((p) => p.y)));
   const body = yTicks(L, max);
   const px = (x) => m.left + ((x - xMin) / xSpan) * pw;
-  const py = (y) => m.top + ph - (y / max) * ph;
+  const py = (y) => m.top + ph - (Math.max(0, y) / max) * ph;
   for (const v of [...new Set(xs)].sort((a, b) => a - b)) {
     body.push(`<text class="x-tick" x="${num(px(v))}" y="${m.top + ph + 16}" text-anchor="middle">${escapeXml(num(v))}</text>`);
   }
