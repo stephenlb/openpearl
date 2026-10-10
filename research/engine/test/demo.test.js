@@ -12,6 +12,6 @@ test('demo exits 0 and prints one row per scenario', () => {
   const lines = r.stdout.trim().split('\n');
   const names = loadScenarios().map((s) => s.name);
   const rows = lines.filter((l) => names.includes(l.split(/\s+/)[0]));
-  assert.equal(rows.length, 12);
-  assert.equal(lines.length, 14); // header + rule + rows
+  assert.equal(rows.length, names.length);
+  assert.equal(lines.length, names.length + 2); // header + rule + rows
 });
