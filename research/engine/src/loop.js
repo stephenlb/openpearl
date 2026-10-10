@@ -2,7 +2,8 @@
 // ledger. Events may carry any of:
 //   - `strategy` + boolean `success` (+ `costMs`): recorded in the learner
 //   - failure (`success === false` or an `error`): drafted into issues
-//   - `change` + `metricBefore` + `metricAfter`: recorded in the ledger
+//   - `change` + finite `metricBefore` + `metricAfter`: recorded in the ledger
+// Invalid strategy/cost/metric fields cause that step to be skipped, never thrown on.
 import { draftIssues } from './issuedraft.js';
 
 export function runImprovementCycle({ events, learner, ledger, minCount } = {}) {
@@ -17,11 +18,14 @@ export function runImprovementCycle({ events, learner, ledger, minCount } = {}) 
   const strategies = [];
   const failures = [];
   for (const ev of events) {
-    if (typeof ev?.strategy === 'string' && typeof ev.success === 'boolean') {
+    if (
+      typeof ev?.strategy === 'string' && ev.strategy !== '' && typeof ev.success === 'boolean' &&
+      (ev.costMs === undefined || (Number.isFinite(ev.costMs) && ev.costMs >= 0))
+    ) {
       if (!strategies.includes(ev.strategy)) strategies.push(ev.strategy);
       learner.record({ strategy: ev.strategy, success: ev.success, costMs: ev.costMs });
     }
-    if (ev?.change !== undefined && ev.metricBefore !== undefined && ev.metricAfter !== undefined) {
+    if (ev?.change !== undefined && Number.isFinite(ev.metricBefore) && Number.isFinite(ev.metricAfter)) {
       ledger.record(ev.change, ev.metricBefore, ev.metricAfter);
     }
     if (ev?.success === false || ev?.error !== undefined) failures.push(ev);

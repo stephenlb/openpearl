@@ -54,3 +54,31 @@ test('respects minCount and validates inputs', () => {
   assert.throws(() => runImprovementCycle({ events, ledger: createLedger() }), TypeError);
   assert.throws(() => runImprovementCycle({ events, learner: createLearner() }), TypeError);
 });
+
+test('skips malformed events without aborting the cycle', () => {
+  const ledger = createLedger({ clock: () => 1 });
+  const out = runImprovementCycle({
+    events: [
+      { strategy: 'a', success: true },
+      { strategy: '', success: false },
+      { strategy: 'b', success: true, costMs: -1 },
+      { strategy: 'c', success: true, costMs: 'x' },
+      { change: 'x', metricBefore: 'x', metricAfter: 1 },
+      { change: 'y', metricBefore: NaN, metricAfter: 1 },
+    ],
+    learner: createLearner(),
+    ledger,
+  });
+  assert.deepEqual(out.ranked.map((r) => r.strategy), ['a']);
+  assert.equal(ledger.entries().length, 0);
+});
+
+test('drafts events with error but no success', () => {
+  const out = runImprovementCycle({
+    events: [1, 2, 3].map((n) => ({ error: 'boom', message: 'boom', task: n })),
+    learner: createLearner(),
+    ledger: createLedger(),
+    minCount: 1,
+  });
+  assert.ok(out.drafts.length >= 1);
+});
