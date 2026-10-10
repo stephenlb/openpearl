@@ -15,13 +15,14 @@ const RULES = {
 };
 
 export function loadConfig(obj = {}) {
-  if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {
+  const proto = obj === null || typeof obj !== 'object' ? undefined : Object.getPrototypeOf(obj);
+  if (proto !== Object.prototype && proto !== null) {
     throw new Error('Invalid config: expected a plain object');
   }
   const config = { ...DEFAULTS };
   const errors = [];
   for (const [key, value] of Object.entries(obj)) {
-    if (!(key in RULES)) errors.push(`${key}: unknown option`);
+    if (!Object.hasOwn(RULES, key)) errors.push(`${key}: unknown option`);
     else if (value !== undefined) config[key] = value;
   }
   for (const [key, [min, max]] of Object.entries(RULES)) {

@@ -46,4 +46,23 @@ test('only reports invalid fields', () => {
 test('rejects non-object input', () => {
   assert.throws(() => loadConfig(null), /plain object/);
   assert.throws(() => loadConfig([]), /plain object/);
+  assert.throws(() => loadConfig(new Date()), /plain object/);
+  assert.throws(() => loadConfig(new Map()), /plain object/);
+});
+
+test('rejects inherited property names as unknown keys', () => {
+  assert.throws(() => loadConfig({ constructor: 1 }), /constructor: unknown option/);
+  assert.throws(() => loadConfig(JSON.parse('{"__proto__": {"x": 1}}')), /__proto__: unknown option/);
+});
+
+test('enforces range boundaries', () => {
+  assert.equal(loadConfig({ retries: 100 }).retries, 100);
+  assert.throws(() => loadConfig({ retries: 101 }), /retries/);
+  assert.throws(() => loadConfig({ timeoutMs: 0 }), /timeoutMs/);
+});
+
+test('rejects null, numeric strings and Infinity', () => {
+  for (const v of [null, '5', Infinity, -Infinity]) {
+    assert.throws(() => loadConfig({ retries: v }), /retries: must be a finite number/);
+  }
 });
