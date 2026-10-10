@@ -4,4 +4,5 @@ export { runTask } from './runner.js';
 export { createBreaker, BreakerOpenError } from './breaker.js';
 export { loadConfig, DEFAULTS } from './config.js';
 export { createMetrics } from './metrics.js';
+export { createHealth } from './health.js';
 export { withTimeout, TimeoutError } from './timeout.js';
