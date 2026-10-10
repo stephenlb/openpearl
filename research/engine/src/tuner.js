@@ -6,9 +6,12 @@ export function tune({ params, evaluate, steps = 100, rng = Math.random, maximiz
   if (names.length === 0) throw new RangeError('params must not be empty');
   if (typeof evaluate !== 'function') throw new TypeError('evaluate must be a function');
   for (const n of names) {
-    const { min, max } = params[n];
-    if (!(min <= max)) throw new RangeError(`invalid bounds for ${n}`);
+    const { min, max, step } = params[n];
+    if (!(Number.isFinite(min) && Number.isFinite(max) && min <= max)) throw new RangeError(`invalid bounds for ${n}`);
+    if (step !== undefined && !(Number.isFinite(step) && step > 0)) throw new RangeError(`invalid step for ${n}`);
   }
+  if (!(Number.isFinite(steps) && steps >= 1)) throw new RangeError('steps must be a finite number >= 1');
+  if (!(Number.isFinite(minStep) && minStep > 0)) throw new RangeError('minStep must be a positive number');
 
   const clamp = (n, v) => Math.min(params[n].max, Math.max(params[n].min, v));
   const sign = maximize ? -1 : 1;
@@ -18,6 +21,7 @@ export function tune({ params, evaluate, steps = 100, rng = Math.random, maximiz
 
   const score = (values) => {
     const s = evaluate({ ...values });
+    if (typeof s !== 'number' || Number.isNaN(s)) throw new TypeError('evaluate must return a number (not NaN)');
     used++;
     trajectory.push({ step: used, params: { ...values }, score: s });
     if (best === null || sign * s < sign * best.score) best = { params: { ...values }, score: s };

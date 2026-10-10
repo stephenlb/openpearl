@@ -56,3 +56,22 @@ test('validates input', () => {
   assert.throws(() => tune({ params: {}, evaluate: quad }), RangeError);
   assert.throws(() => tune({ params, evaluate: null }), TypeError);
 });
+
+test('rejects invalid steps, step sizes and minStep', () => {
+  for (const steps of [0, -1, NaN]) assert.throws(() => tune({ params, evaluate: quad, steps }), RangeError);
+  assert.throws(() => tune({ params: { x: { min: 0, max: 1, step: 0 } }, evaluate: quad }), RangeError);
+  assert.throws(() => tune({ params, evaluate: quad, minStep: 0 }), RangeError);
+  assert.throws(() => tune({ params: { x: { min: 0, max: Infinity } }, evaluate: quad }), RangeError);
+});
+
+test('throws on NaN scores', () => {
+  assert.throws(() => tune({ params, evaluate: () => NaN }), TypeError);
+});
+
+test('handles a degenerate range and honours minStep', () => {
+  const r = tune({ params: { x: { min: 2, max: 2 } }, evaluate: ({ x }) => x, steps: 10 });
+  assert.equal(r.best.x, 2);
+  assert.equal(r.evaluations, 10);
+  const coarse = tune({ params, evaluate: quad, steps: 400, minStep: 1, rng: seededRng(1) });
+  assert.ok(coarse.restarts > 0);
+});
