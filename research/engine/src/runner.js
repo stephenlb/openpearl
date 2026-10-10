@@ -3,9 +3,13 @@ import { classifyError } from './classify.js';
 const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Only errors positively classified as non-retryable (`permanent`) are fatal;
-// `unknown` errors are still retried.
+// `unknown` errors are still retried. The error name is ignored: a bare
+// `TypeError` (e.g. undici's `fetch failed`) may wrap a transient failure.
 function isFatal(err) {
-  const { class: kind, retryable } = classifyError(err);
+  const probe = err !== null && typeof err === 'object'
+    ? { name: 'Error', message: err.message, code: err.code, cause: err.cause }
+    : err;
+  const { class: kind, retryable } = classifyError(probe);
   return !retryable && kind !== 'unknown';
 }
 

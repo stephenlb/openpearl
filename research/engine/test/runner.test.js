@@ -165,6 +165,18 @@ test('stops once a retryable error turns permanent', async () => {
   assert.equal(res.error.code, 'ENOENT');
 });
 
+test('bare TypeError is retried', async () => {
+  let calls = 0;
+  const res = await runTask(
+    () => {
+      if (++calls < 3) throw new TypeError('fetch failed');
+      return 'ok';
+    },
+    { sleep: () => {} },
+  );
+  assert.deepEqual(res, { ok: true, value: 'ok', attempts: 3 });
+});
+
 test('retryAll retries non-retryable errors', async () => {
   let calls = 0;
   const res = await runTask(
