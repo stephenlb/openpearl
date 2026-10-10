@@ -1,2 +1,2 @@
 // Public entry point: modules are re-exported here as they are added.
-export {};
+export { createBreaker, BreakerOpenError } from './breaker.js';
