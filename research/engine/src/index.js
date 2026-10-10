@@ -32,3 +32,4 @@ export { createShedder } from './shed.js';
 export { createBatcher } from './batch.js';
 export { createBudget } from './budget.js';
 export { createProfiler } from './profile.js';
+export { createEngine } from './engine.js';
