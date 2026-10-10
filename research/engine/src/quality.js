@@ -56,7 +56,7 @@ function strip(text) {
 }
 
 const FUNCTION_RE = /\bfunction\b|=>/g;
-const BRANCH_RE = /\b(?:if|for|while|case|catch)\b|&&|\|\||\?\?(?!=)|(?<!\?)\?(?![.?:=,)])/g;
+const BRANCH_RE = /\b(?:if|for|while|case|catch)\b|&&|\|\||\?\?=?|(?<!\?)\?(?![.?:=,)])/g;
 
 const count = (re, s) => (s.match(re) || []).length;
 
