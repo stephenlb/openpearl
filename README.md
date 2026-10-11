@@ -30,7 +30,7 @@ When an owner, member, or collaborator opens an issue, `.github/workflows/issue-
 3. If enabled, Bash acceptance scripts run on a separate Actions runner, with custom failure feedback and a bounded fix-and-retest loop. Suites can live in a private external repository. See [Acceptance tests](#acceptance-tests).
 4. The agent CLI runs the eval in `.github/workflows/evals/pr-ready-to-merge.md`.
    - `YES`: the PR is squash-merged and the issue gets a "PR Auto-Merged: …" comment.
-   - Anything else: the PR stays open for a human and the issue gets a "PR Ready for Review: …" comment.
+   - Anything else: the PR stays open for a human and the issue gets a "PR Ready for Review: …" comment. The "Summary of work completed" comment then includes a human review brief covering system impact, design trade-offs, and whether the result matches the issue's intent.
 
 Set the `AUTO_MERGE` repo variable to `1` to force the eval verdict: the protected-paths, diff-size and project-test guards are skipped, so even changes to workflows or auth files can merge without review. The `dry-run` label, unresolved merge conflicts, enabled acceptance checks, and required CI checks still prevent merging.
 
