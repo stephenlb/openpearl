@@ -15,8 +15,6 @@ Open source under the [Apache License 2.0](LICENSE).
 
 The small stuff? Let the little robot handle it while you get a drink from the vending machine.
 
-**OPEN 24/7 · NO SLEEP · TINY WORKFLOW · AUTO-MERGE**
-
 OpenPearl reads a ticket, implements it, opens a PR, reviews it in a loop and auto-merges. All as a GitHub workflow. If it isn't confident, it waves politely and hands the PR to a human. Seamlessly integrates into your existing CI/CD.
 
 ## Why not a pile of markdown files?
