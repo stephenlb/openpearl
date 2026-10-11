@@ -486,6 +486,8 @@ jobs:
         run: |
           # The final summary step supplies the fallback if this is empty
           agent-retry read "Run 'git diff origin/$BASE...HEAD' and summarize the work completed in 3-6 concise markdown bullet points. Output only the bullets." 10 > "$RUNNER_TEMP/done-summary.md" || true
+          # Hand-off brief for a human reviewer who may get this PR if auto-merge does not happen
+          agent-retry read "Write a short review brief for a human who must decide whether to merge this PR. The original issue is in $RUNNER_TEMP/task.md and the change is 'git diff origin/$BASE...HEAD'. Output only markdown with exactly these three sections, each 2-4 bullets: '**System impact**' (what other components, interfaces, data, deployments or users this touches, and what could break), '**Design trade-offs**' (key choices made, alternatives not taken, and what was given up) and '**Intent match**' (whether the result matches what the issue asked for, noting anything left out, added beyond the request, or ambiguous). Be specific and flag uncertainty." 10 > "$RUNNER_TEMP/review-brief.md" || true
 
       - name: Run project tests
         if: steps.commit.outputs.changed == 'true'
@@ -685,6 +687,14 @@ jobs:
           **Auto-merge did not happen. Click the link above, review the changes, and merge the PR yourself:** $PR_URL"
           fi
           [ -s "$RUNNER_TEMP/done-summary.md" ] || echo "_Summary unavailable; see the PR for details._" > "$RUNNER_TEMP/done-summary.md"
+          # Judging system impact, trade-offs and intent is only needed when a human takes over
+          brief=""
+          if [ "$MERGED" != "true" ] && [ -s "$RUNNER_TEMP/review-brief.md" ]; then
+            brief="### Human review brief
+
+          $(cat "$RUNNER_TEMP/review-brief.md")
+          "
+          fi
           issue-say --body-file - <<EOF
           ## Summary of work completed
 
@@ -692,6 +702,7 @@ jobs:
 
           $(cat "$RUNNER_TEMP/done-summary.md")
 
+          $brief
           ### Review rounds
 
           $(for f in "$RUNNER_TEMP"/review-*.md; do
