@@ -57,7 +57,7 @@ srt = sorted(rows, key=lambda r: r["issue"]); fig, ax = plt.subplots(figsize=(12
 tc = {"pass": "#1baf6b", "fail": "#d6455d", "none": "#bbbbbb", None: "#bbbbbb"}
 ax.bar(range(len(srt)), [1] * len(srt), color=[tc.get(r["tests"], "#bbb") for r in srt], width=.9)
 ax.set_xticks(range(len(srt))); ax.set_xticklabels([r["key"] for r in srt], rotation=90, fontsize=6); ax.set_yticks([])
-ax.set_title("Test gate per PR in issue order: red main contaminates later PRs"); ax.grid(False); save(fig, "test-gate-timeline.svg")
+ax.set_title("What happened after red tests reached main"); ax.grid(False); save(fig, "test-gate-timeline.svg")
 # ---------- engine-level charts ----------
 E = json.load(open(os.path.join(D, "engine-eval.json")))
 h = E["healing"]; fr = [r["failRate"] * 100 for r in h]
