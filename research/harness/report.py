@@ -54,7 +54,7 @@ html = f"""<!doctype html>
 <title>Research: can OpenPearl build a self-healing, self-improving, self-optimizing engine? | OpenPearl</title>
 <link rel="icon" type="image/png" href="favicon.png"><link rel="stylesheet" href="style.css">
 <style>main{{max-width:980px;margin:0 auto;padding:24px}}table{{border-collapse:collapse;width:100%;font-size:15px;margin:12px 0 24px}}th,td{{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}}th{{background:var(--code)}}figure{{margin:18px 0}}figure img{{width:100%;height:auto;background:#fff;border:1px solid var(--line);border-radius:8px}}figcaption{{font-size:14px;color:#666}}.stats{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:18px 0}}.stat{{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}}.stat b{{display:block;font-size:26px;font-weight:600}}.verdict td:first-child{{white-space:nowrap}}</style></head>
-<body><header style="min-height:0"><nav><a class="brand" href="./"><img alt="" src="favicon.png">OpenPearl</a><div class="links"><a class="link" href="./">Home base</a><a class="link active" href="research.html">Research</a><a class="link" href="https://github.com/stephenlb/openpearl">GitHub</a></div></nav></header>
+<body><header style="min-height:0"><nav><a class="brand" href="./"><img alt="" src="favicon.png">OpenPearl</a><div class="links"><a class="link" href="./">Home</a><a class="link active" href="research.html">Research</a><a class="link" href="https://github.com/stephenlb/openpearl">GitHub</a></div></nav></header>
 <main>
 <p class="eyebrow">Research report &middot; {dt.date.today().isoformat()}</p>
 <h1>Can a ticket pipeline build a self-healing, self-improving, self-optimizing engine?</h1>
