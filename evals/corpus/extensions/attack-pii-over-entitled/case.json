@@ -1,0 +1,1 @@
+{ "tenant": "beta", "slug": "emails", "about": "Free-plan tenant asks for a sensitive field its plan excludes", "expect": { "gates": "fail", "isolation": "fail" } }

@@ -1,0 +1,1 @@
+{ "tenant": "acme", "slug": "plan-upgrade", "about": "Also edits the entitlements file to grant itself a bigger plan", "extraChanges": [{ "status": "M", "mode": "100644", "path": "framework/core/entitlements.json" }], "expect": { "gates": "fail", "isolation": "pass" } }

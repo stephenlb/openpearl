@@ -1,0 +1,1 @@
+{ "version": 1, "name": "helper", "description": "Helper.", "routes": [{ "method": "GET", "path": "/h" }], "capabilities": [] }

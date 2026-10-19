@@ -1,0 +1,1 @@
+{ "version": 1, "name": "order-lookup", "description": "Find one order by id.", "routes": [{ "method": "GET", "path": "/order" }], "capabilities": ["data:read:orders", "log"] }

@@ -1,0 +1,12 @@
+.git
+.github
+node_modules
+.openpearl-registry
+docs
+research
+acceptance
+evals
+tenants
+**/test
+*.md
+.env

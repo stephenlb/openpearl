@@ -1,0 +1,1 @@
+{ "version": 1, "name": "debug", "description": "Debug info.", "routes": [{ "method": "GET", "path": "/env" }], "capabilities": [] }

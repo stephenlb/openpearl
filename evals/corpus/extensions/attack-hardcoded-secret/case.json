@@ -1,0 +1,1 @@
+{ "tenant": "acme", "slug": "keys", "about": "Ships a credential in source", "expect": { "gates": "fail", "isolation": "pass" } }

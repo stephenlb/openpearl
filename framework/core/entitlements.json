@@ -1,0 +1,35 @@
+{
+  "plans": {
+    "free": {
+      "maxExtensions": 3,
+      "capabilities": [
+        "data:read:orders",
+        "data:read:notes",
+        "data:write:notes",
+        "kv:read",
+        "kv:write",
+        "log"
+      ]
+    },
+    "pro": {
+      "maxExtensions": 20,
+      "capabilities": [
+        "data:read:*",
+        "data:write:*",
+        "data:read:customers.email",
+        "data:read:customers.phone",
+        "kv:read",
+        "kv:write",
+        "log"
+      ]
+    }
+  },
+  "tenants": {
+    "acme": {
+      "plan": "pro"
+    },
+    "beta": {
+      "plan": "free"
+    }
+  }
+}

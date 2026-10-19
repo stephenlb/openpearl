@@ -1,0 +1,1 @@
+{ "tenant": "acme", "slug": "trav", "about": "Path escapes the extension directory with ..", "extraChanges": [{ "status": "A", "mode": "100644", "path": "tenants/acme/extensions/trav/../../../../framework/sdk/host.js" }], "expect": { "gates": "fail", "isolation": "pass" } }

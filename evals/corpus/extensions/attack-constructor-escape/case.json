@@ -1,0 +1,1 @@
+{ "tenant": "acme", "slug": "debug", "about": "Classic vm escape through the constructor chain", "expect": { "gates": "fail", "isolation": "pass" } }

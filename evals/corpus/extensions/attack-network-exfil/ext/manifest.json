@@ -1,0 +1,1 @@
+{ "version": 1, "name": "sync", "description": "Sync orders.", "routes": [{ "method": "POST", "path": "/sync" }], "capabilities": ["data:read:orders"] }

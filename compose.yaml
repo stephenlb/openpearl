@@ -1,0 +1,78 @@
+# OpenPearl stack: Postgres (row-level security), migrations, extension host and,
+# optionally, the intake service. Works with `docker compose` and `podman compose`.
+#
+#   cp .env.example .env && node deploy/keygen.js keys    # then edit .env
+#   docker compose up --build                             # or: podman compose up --build
+#   docker compose --profile intake up --build            # also run the intake service
+#
+# Deploy extensions into ./.openpearl-registry with deploy/cli.js; the host picks
+# up new versions and rollbacks on the next request.
+name: openpearl
+
+x-hardening: &hardening
+  read_only: true
+  tmpfs: [/tmp]
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+
+services:
+  postgres:
+    image: docker.io/library/postgres:17-alpine
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    build: .
+    image: localhost/openpearl:latest
+    command: ["node", "framework/migrate.js"]
+    environment:
+      OPENPEARL_ADMIN_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
+      OPENPEARL_APP_PASSWORD: ${OPENPEARL_APP_PASSWORD:?set OPENPEARL_APP_PASSWORD in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    <<: *hardening
+
+  host:
+    image: localhost/openpearl:latest
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      # The app role can't bypass row-level security; never point this at the postgres superuser
+      OPENPEARL_DATABASE_URL: postgres://openpearl_app:${OPENPEARL_APP_PASSWORD}@postgres:5432/postgres
+      OPENPEARL_VERIFY_KEY_FILE: /run/keys/signing.pub.pem
+      OPENPEARL_SERVE_TOKENS: ${OPENPEARL_SERVE_TOKENS:-{}}
+    volumes:
+      - ./.openpearl-registry:/registry:ro
+      - ${OPENPEARL_VERIFY_KEY_FILE:-./keys/signing.pub.pem}:/run/keys/signing.pub.pem:ro
+    ports:
+      - "8788:8788"
+    restart: unless-stopped
+    <<: *hardening
+
+  intake:
+    profiles: [intake]
+    image: localhost/openpearl:latest
+    command: ["node", "intake/server.js"]
+    environment:
+      PORT: "8787"
+      OPENPEARL_INTAKE_TOKENS: ${OPENPEARL_INTAKE_TOKENS:-{}}
+      OPENPEARL_INTAKE_KEY: ${OPENPEARL_INTAKE_KEY:-}
+      OPENPEARL_REPO: ${OPENPEARL_REPO:-}
+      OPENPEARL_GITHUB_TOKEN: ${OPENPEARL_GITHUB_TOKEN:-}
+    ports:
+      - "8787:8787"
+    restart: unless-stopped
+    <<: *hardening
+
+volumes:
+  pgdata:

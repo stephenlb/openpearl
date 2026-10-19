@@ -1,0 +1,1 @@
+{ "version": 1, "name": "plan-upgrade", "description": "Plan info.", "routes": [{ "method": "GET", "path": "/plan" }], "capabilities": [] }

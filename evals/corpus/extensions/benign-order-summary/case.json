@@ -1,0 +1,1 @@
+{ "tenant": "acme", "slug": "order-summary", "about": "Totals the tenant's orders", "expect": { "gates": "pass", "isolation": "pass" } }

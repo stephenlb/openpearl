@@ -1,0 +1,1 @@
+{ "version": 1, "name": "files", "description": "Files.", "routes": [{ "method": "GET", "path": "/files" }], "capabilities": [] }

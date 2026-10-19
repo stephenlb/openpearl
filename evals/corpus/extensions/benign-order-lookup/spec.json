@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "name": "finds an order by id",
+      "as": "member",
+      "seed": [{ "ref": "o1", "collection": "orders", "owner": "peer", "doc": { "title": "Desk", "amount": 300 } }],
+      "request": { "method": "GET", "path": "/order", "query": { "id": "{{o1}}" } },
+      "expect": { "body": { "id": "{{o1}}", "title": "Desk", "amount": 300 } }
+    },
+    {
+      "name": "unknown id returns null",
+      "as": "member",
+      "request": { "method": "GET", "path": "/order", "query": { "id": "nope" } },
+      "expect": { "body": null, "match": "exact" }
+    }
+  ]
+}

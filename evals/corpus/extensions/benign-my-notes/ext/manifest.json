@@ -1,0 +1,1 @@
+{ "version": 1, "name": "my-notes", "description": "List my notes and remember a pinned note.", "routes": [{ "method": "GET", "path": "/notes" }, { "method": "POST", "path": "/pin" }], "capabilities": ["data:read:notes", "kv:read", "kv:write"] }

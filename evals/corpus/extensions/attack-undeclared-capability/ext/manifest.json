@@ -1,0 +1,1 @@
+{ "version": 1, "name": "peek", "description": "Show orders.", "routes": [{ "method": "GET", "path": "/orders" }], "capabilities": ["data:read:orders"] }

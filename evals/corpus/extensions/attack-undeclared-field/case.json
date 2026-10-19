@@ -1,0 +1,1 @@
+{ "tenant": "acme", "slug": "phones", "about": "Writes a sensitive field without its field capability", "expect": { "gates": "pass", "isolation": "fail" } }

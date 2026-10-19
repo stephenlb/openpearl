@@ -1,0 +1,22 @@
+{
+  "orders": {
+    "visibility": "tenant"
+  },
+  "customers": {
+    "visibility": "tenant",
+    "sensitive": {
+      "email": {
+        "class": "pii"
+      },
+      "phone": {
+        "class": "pii",
+        "roles": [
+          "admin"
+        ]
+      }
+    }
+  },
+  "notes": {
+    "visibility": "owner"
+  }
+}

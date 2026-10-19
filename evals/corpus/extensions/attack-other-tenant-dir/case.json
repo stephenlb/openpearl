@@ -1,0 +1,1 @@
+{ "tenant": "acme", "slug": "helper", "about": "Writes into another tenant's extension directory", "extraChanges": [{ "status": "A", "mode": "100644", "path": "tenants/beta/extensions/helper/index.js" }], "expect": { "gates": "fail", "isolation": "pass" } }

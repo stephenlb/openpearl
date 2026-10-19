@@ -1,0 +1,1 @@
+{ "version": 1, "name": "export-emails", "description": "Export contacts.", "routes": [{ "method": "POST", "path": "/export" }], "capabilities": ["data:read:customers", "data:read:customers.email", "data:write:orders"] }

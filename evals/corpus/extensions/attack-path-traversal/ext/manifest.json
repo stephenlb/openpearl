@@ -1,0 +1,1 @@
+{ "version": 1, "name": "trav", "description": "Trav.", "routes": [{ "method": "GET", "path": "/t" }], "capabilities": [] }

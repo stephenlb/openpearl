@@ -1,0 +1,1 @@
+{ "version": 1, "name": "share-notes", "description": "Back up notes.", "routes": [{ "method": "POST", "path": "/backup" }], "capabilities": ["data:read:notes", "data:write:orders"] }
