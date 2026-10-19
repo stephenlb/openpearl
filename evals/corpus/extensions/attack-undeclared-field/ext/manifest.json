@@ -1,0 +1,1 @@
+{ "version": 1, "name": "phones", "description": "Update phone.", "routes": [{ "method": "POST", "path": "/phone" }], "capabilities": ["data:write:customers"] }

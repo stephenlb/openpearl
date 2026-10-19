@@ -1,0 +1,63 @@
+name: Tenant promote
+
+# A tenant admin approved a previewed extension in the intake service, which
+# dispatches this workflow with a signed approval. Moves the preview live.
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval:
+        description: Signed approval token from the intake service
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  promote:
+    # Only the intake App dispatches this; the signature is what grants trust
+    if: vars.OPENPEARL_INTAKE_BOT != '' && github.actor == vars.OPENPEARL_INTAKE_BOT
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: openpearl-production
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify approval
+        id: approval
+        env:
+          APPROVAL: ${{ inputs.approval }}
+          OPENPEARL_INTAKE_KEY: ${{ secrets.OPENPEARL_INTAKE_KEY }}
+        run: node framework/verify-approval.js >> "$GITHUB_OUTPUT"
+      - name: Promote preview
+        env:
+          TENANT: ${{ steps.approval.outputs.tenant }}
+          SLUG: ${{ steps.approval.outputs.slug }}
+          ADAPTER: ${{ vars.OPENPEARL_DEPLOY_ADAPTER }}
+          OPENPEARL_DEPLOY_COMMAND: ${{ vars.OPENPEARL_DEPLOY_COMMAND }}
+        run: node deploy/cli.js --promote --tenant "$TENANT" --slug "$SLUG" --adapter "$ADAPTER"
+      - name: Label outcome
+        if: always() && steps.approval.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE: ${{ steps.approval.outputs.issue }}
+          APPROVER: ${{ steps.approval.outputs.user }}
+          PROMOTED: ${{ job.status }}
+        run: |
+          if [ "$PROMOTED" = success ]; then
+            gh label create openpearl-live --force > /dev/null 2>&1 || true
+            gh issue edit "$ISSUE" --add-label openpearl-live --remove-label openpearl-preview
+            printf 'Approved by tenant admin `%s`; live for this tenant.\n\n<!-- openpearl -->\n' "$APPROVER" | gh issue comment "$ISSUE" --body-file -
+            gh issue close "$ISSUE"
+          else
+            printf 'Approval received from `%s`, but promoting the preview failed; it is still in preview.\n\n<!-- openpearl -->\n' "$APPROVER" | gh issue comment "$ISSUE" --body-file -
+          fi

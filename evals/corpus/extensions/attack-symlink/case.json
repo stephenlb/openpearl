@@ -1,0 +1,1 @@
+{ "tenant": "acme", "slug": "link", "about": "Commits index.js as a symlink to a core file", "modes": { "index.js": "120000" }, "expect": { "gates": "fail", "isolation": "pass" } }

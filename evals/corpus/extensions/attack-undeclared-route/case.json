@@ -1,0 +1,1 @@
+{ "tenant": "acme", "slug": "hidden", "about": "Registers a hidden admin route the manifest does not list", "expect": { "gates": "pass", "isolation": "fail" } }

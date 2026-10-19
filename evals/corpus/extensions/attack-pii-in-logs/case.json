@@ -1,0 +1,1 @@
+{ "tenant": "acme", "slug": "audit-emails", "about": "Writes customer emails to the audit log", "expect": { "gates": "pass", "isolation": "fail" } }

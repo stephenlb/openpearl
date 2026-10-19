@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>OpenPearl</title>
+<title>OpenPearl · Mutable Software Framework</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -15,6 +15,7 @@
       <a class="link active" href="./">Home</a>
       <a class="link" href="https://github.com/stephenlb/openpearl">GitHub</a>
       <a class="link" href="#install">Setup</a>
+      <a class="link" href="#framework">Framework</a>
       <a class="link" href="https://github.com/stephenlb/openpearl/issues">Issues</a>
       <a class="link" href="research.html">Research</a>
       <a class="link pill" href="https://discord.gg/mygDNrQ7DJ">Discord</a>
@@ -23,10 +24,11 @@
   </nav>
   <section class="hero">
     <p class="eyebrow">Meet OpenPearl: a yaml file that takes the night shift for your GitHub repo</p>
+    <p class="subtitle">Mutable Software Framework</p>
     <h1>Ticket In, Merged PR Out, Seamlessly</h1>
     <p class="lead">The small stuff? Let the little robot handle it while you get a drink from the vending machine.</p>
     <a class="cta" href="#install">Move the robot in</a>
-    <p class="tags"><span class="tag">OPEN 24/7</span><span class="tag">NO SLEEP</span><span class="tag">TINY WORKFLOW</span><span class="tag">AUTO-MERGE</span></p>
+    <p class="tags"><span class="tag">OPEN 24/7</span><span class="tag">NO SLEEP</span><span class="tag">TINY WORKFLOW</span><span class="tag">AUTO-MERGE</span><span class="tag">MUTABLE</span></p>
     <p class="license">Open source under the <a href="https://github.com/stephenlb/openpearl/blob/main/LICENSE">Apache License 2.0</a></p>
   </section>
 </header>
@@ -79,6 +81,26 @@ gh run watch</code></pre>
 gh issue create -t "Button is misaligned" \
   -b "![shot](https://github.com/{owner}/{repo}/blob/HEAD/issue-assets/shot.png?raw=true)"</code></pre>
   </section>
+  <section id="framework">
+    <p class="eyebrow">Mutable Software Framework</p>
+    <h2>Your customers ask, the software changes</h2>
+    <p>OpenPearl can also take feature requests straight from your product's customers. Each request ships as a <strong>tenant extension</strong>: a sandboxed plugin that only the requesting customer's tenant can see. It is merged and deployed automatically, typically in about five minutes, with no human in the loop. That's safe because the platform makes a cross-tenant leak impossible by construction, and evals check whatever the platform can't rule out.</p>
+    <ol>
+      <li><strong>Intake.</strong> The customer submits a request in your product. The tenant comes from their login, and the request is signed and filed as an issue by your GitHub App.</li>
+      <li><strong>Triage.</strong> An eval rejects requests for other tenants' data, admin rights, auth or plan changes, outbound network calls or attempts to steer the pipeline. Unclear requests get clarifying questions instead.</li>
+      <li><strong>Implement.</strong> An agent with no shell, no repo token and no view of other tenants writes one extension directory.</li>
+      <li><strong>Gate.</strong> A path allowlist, the manifest checked against the tenant's plan, a canary isolation harness, acceptance tests from a second agent that never sees the code, and three evals (isolation, least capability, intent match).</li>
+      <li><strong>Merge.</strong> The exact patch that passed is merged by a job with no agent in it.</li>
+      <li><strong>Deploy.</strong> The merged commit is signed and enabled for that tenant only. Extensions that write data wait in a read-only preview until a tenant admin approves. Bad releases roll back automatically.</li>
+    </ol>
+    <h3>Why automatic merge is safe</h3>
+    <p>Security lives in the runtime, and the evals are the second line. Every query is scoped by a session the platform issues, and in Postgres, row-level security enforces the same scoping inside the database, so an extension can't name another tenant. Rows marked owner-only stay with their owner, and sensitive fields like emails need their own capability and never reach logs. Extensions can only use the capabilities their manifest declares, and reaching past them takes the extension offline and alerts you. Each request runs in a fresh sandbox inside a memory-capped isolate, and only signed bundles load.</p>
+    <h3>Evals that keep data where it belongs</h3>
+    <p>The isolation harness seeds unique canary values for several users, every sensitive field and a second tenant, then attacks every route with hostile inputs. It fails if anyone sees a value they aren't entitled to, including data quietly copied into a shared collection or written to a log. A second agent writes acceptance tests from the request alone, so a feature that is safe but wrong doesn't ship, and those tests guard every later change. A corpus of attack extensions must be stopped on every pull request, and a labelled set of malicious and benign requests tests the triage eval every night.</p>
+    <h3>Runs where you run</h3>
+    <p>One container image runs the extension host, the intake service and the migrations. Start everything with <code>docker compose up</code> or <code>podman compose up</code>, or as a pod with <code>podman kube play</code>. Tenant data lives in Postgres behind row-level security, and deploys go through a pluggable adapter for your platform.</p>
+    <p class="note">See the <a href="https://github.com/stephenlb/openpearl/blob/main/framework/README.md">framework guide</a>, the <a href="https://github.com/stephenlb/openpearl/blob/main/framework/EXTENSIONS.md">extension contract</a> and the <a href="https://github.com/stephenlb/openpearl/blob/main/SECURITY.md">threat model</a>, including its known limitations.</p>
+  </section>
   <section id="research">
     <p class="eyebrow">Research</p>
     <h2>Can it build a self-healing, self-improving, self-optimizing engine?</h2>
@@ -109,7 +131,7 @@ git push origin add-openpearl</code></pre>
       <li>Add the secret <code>ANTHROPIC_API_KEY</code> under <strong>Settings &gt; Secrets and variables &gt; Actions</strong>.</li>
       <li>Open a pull request from the <code>add-openpearl</code> branch and merge it, then open an issue and watch the robot work.</li>
     </ol>
-    <p class="note">See the <a href="https://github.com/stephenlb/openpearl">README</a> for full setup instructions.</p>
+    <p class="note">See the <a href="https://github.com/stephenlb/openpearl">README</a> for full setup instructions. To let customers request features, follow the <a href="https://github.com/stephenlb/openpearl/blob/main/framework/README.md#setup">Mutable Software Framework setup</a>.</p>
   </section>
 </main>
 <script>

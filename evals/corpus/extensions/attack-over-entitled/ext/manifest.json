@@ -1,0 +1,1 @@
+{ "version": 1, "name": "crm", "description": "Customer list.", "routes": [{ "method": "GET", "path": "/customers" }], "capabilities": ["data:read:customers"] }

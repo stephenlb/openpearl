@@ -55,7 +55,8 @@ env:
 jobs:
   implement:
     # Issue bodies are untrusted prompt input: only run for trusted authors.
-    if: contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
+    # Customer requests (openpearl-request) go through tenant-feature.yml instead.
+    if: contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association) && !contains(github.event.issue.labels.*.name, 'openpearl-request')
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -541,10 +542,11 @@ jobs:
             review-clean "$RUNNER_TEMP/review-final.md" && final_clean=true
           fi
 
-          # Deterministic guard: never auto-merge changes to workflows, auth/secrets, or dependency manifests
+          # Deterministic guard: never auto-merge changes to workflows, auth/secrets, dependency manifests,
+          # the live site (docs/), or the tenant framework and its security layers
           protected=$(git diff --name-only "origin/$BASE...HEAD" \
             | grep -Eiv '(^|/)node_modules/' \
-            | grep -Ei '^\.github/|^acceptance/|(^|/)(auth|secrets?|credentials?)([/._-]|$)|(^|/)\.env|(^|/)(package(-lock)?\.json|yarn\.lock|pnpm-lock\.yaml|requirements[^/]*\.txt|Pipfile(\.lock)?|poetry\.lock|go\.(mod|sum)|Cargo\.(toml|lock)|Gemfile(\.lock)?|pom\.xml|build\.gradle)$' || true)
+            | grep -Ei '^\.github/|^acceptance/|^docs/|^(framework|isolation|deploy|intake|evals|tenants)/|(^|/)(auth|secrets?|credentials?)([/._-]|$)|(^|/)\.env|(^|/)(package(-lock)?\.json|yarn\.lock|pnpm-lock\.yaml|requirements[^/]*\.txt|Pipfile(\.lock)?|poetry\.lock|go\.(mod|sum)|Cargo\.(toml|lock)|Gemfile(\.lock)?|pom\.xml|build\.gradle)$' || true)
           # Deterministic guard: large diffs need a human
           diff_files=$(git diff --name-only "origin/$BASE...HEAD" | wc -l)
           diff_lines=$(git diff --numstat "origin/$BASE...HEAD" | awk '{ if ($1 != "-") n += $1 + $2 } END { print n + 0 }')

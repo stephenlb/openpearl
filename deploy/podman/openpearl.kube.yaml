@@ -1,0 +1,74 @@
+# OpenPearl as a Podman pod: Postgres, a migration container and the extension host.
+#
+#   podman build -t localhost/openpearl:latest .
+#   node deploy/keygen.js keys
+#   podman kube play --replace deploy/podman/openpearl.kube.yaml
+#   podman kube down deploy/podman/openpearl.kube.yaml
+#
+# Edit the Secret below first. hostPath volumes are relative to where you run `podman kube play`
+# from, so run it from the repository root. The same file works with `kubectl apply` after
+# swapping hostPath for real volumes.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: openpearl-secrets
+stringData:
+  postgres-password: change-me
+  app-password: change-me-too
+  serve-tokens: "{}"
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: openpearl
+spec:
+  containers:
+    - name: migrate
+      image: localhost/openpearl:latest
+      # Retries until Postgres is up, then idles (pods restart containers that exit)
+      command: ["sh", "-c", "until node framework/migrate.js; do sleep 2; done; while :; do sleep 3600; done"]
+      env:
+        - name: PGPASSWORD_ADMIN
+          valueFrom: { secretKeyRef: { name: openpearl-secrets, key: postgres-password } }
+        - name: OPENPEARL_ADMIN_DATABASE_URL
+          value: postgres://postgres:$(PGPASSWORD_ADMIN)@127.0.0.1:5432/postgres
+        - name: OPENPEARL_APP_PASSWORD
+          valueFrom: { secretKeyRef: { name: openpearl-secrets, key: app-password } }
+      securityContext: &hardened
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+        capabilities: { drop: [ALL] }
+    - name: postgres
+      image: docker.io/library/postgres:17-alpine
+      env:
+        - name: POSTGRES_PASSWORD
+          valueFrom: { secretKeyRef: { name: openpearl-secrets, key: postgres-password } }
+      volumeMounts:
+        - { name: pgdata, mountPath: /var/lib/postgresql/data }
+    - name: host
+      image: localhost/openpearl:latest
+      ports:
+        - { containerPort: 8788, hostPort: 8788 }
+      env:
+        - name: APP_PASSWORD
+          valueFrom: { secretKeyRef: { name: openpearl-secrets, key: app-password } }
+        - name: OPENPEARL_DATABASE_URL
+          value: postgres://openpearl_app:$(APP_PASSWORD)@127.0.0.1:5432/postgres
+        - name: OPENPEARL_VERIFY_KEY_FILE
+          value: /run/keys/signing.pub.pem
+        - name: OPENPEARL_SERVE_TOKENS
+          valueFrom: { secretKeyRef: { name: openpearl-secrets, key: serve-tokens } }
+      securityContext: *hardened
+      volumeMounts:
+        - { name: registry, mountPath: /registry, readOnly: true }
+        - { name: keys, mountPath: /run/keys, readOnly: true }
+        - { name: tmp, mountPath: /tmp }
+  volumes:
+    - name: pgdata
+      persistentVolumeClaim: { claimName: openpearl-pgdata }
+    - name: registry
+      hostPath: { path: ./.openpearl-registry, type: DirectoryOrCreate }
+    - name: keys
+      hostPath: { path: ./keys, type: Directory }
+    - name: tmp
+      emptyDir: {}

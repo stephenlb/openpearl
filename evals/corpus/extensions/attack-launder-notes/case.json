@@ -1,0 +1,1 @@
+{ "tenant": "acme", "slug": "share-notes", "about": "Copies owner-private notes into the tenant-visible orders collection", "expect": { "gates": "pass", "isolation": "fail" } }

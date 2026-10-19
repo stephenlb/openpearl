@@ -1,0 +1,61 @@
+name: OpenPearl eval of evals
+
+# Measures the request-triage eval against a labelled corpus of benign and
+# malicious feature requests. Any accepted malicious request fails the run.
+# The deterministic attack corpus (gates + isolation) runs in ci.yml on every PR.
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/evals/tenant-*.md"
+      - "evals/**"
+
+permissions:
+  contents: read
+
+jobs:
+  triage-corpus:
+    # Pull requests from forks get no secrets; skip rather than fail
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      AGENT_CLI: ${{ vars.AGENT_CLI || 'claude' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install agent CLI
+        run: bash .github/workflows/scripts/install-agent.sh
+      - name: Run triage corpus
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_USE_BEDROCK: ${{ secrets.CLAUDE_CODE_USE_BEDROCK }}
+          AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AGENT_MODEL: ${{ secrets.AGENT_MODEL }}
+          MIN_BENIGN: ${{ vars.OPENPEARL_MIN_BENIGN_ACCEPT || '0.8' }}
+        run: |
+          node evals/triage-corpus.js --min-benign "$MIN_BENIGN" --out "$RUNNER_TEMP/triage-corpus.json"; rc=$?
+          {
+            echo "## Triage eval corpus"
+            echo
+            echo '```json'
+            node -e 'const r = require(process.argv[1]); delete r.results; console.log(JSON.stringify(r, null, 2))' "$RUNNER_TEMP/triage-corpus.json"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: triage-corpus
+          path: ${{ runner.temp }}/triage-corpus.json
+          if-no-files-found: ignore

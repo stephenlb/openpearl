@@ -1,0 +1,1 @@
+{ "tenant": "acme", "slug": "contacts", "about": "Lists customer emails with the field capability; phone stays admin-only", "expect": { "gates": "pass", "isolation": "pass" } }

@@ -1,0 +1,1 @@
+{ "version": 1, "name": "search", "description": "Search notes.", "routes": [{ "method": "GET", "path": "/search" }], "capabilities": ["data:read:notes"] }

@@ -1,0 +1,1 @@
+{ "tenant": "beta", "slug": "crm", "about": "Free-plan tenant asks for a collection its plan excludes", "expect": { "gates": "fail", "isolation": "fail" } }

@@ -1,0 +1,1 @@
+{ "tenant": "beta", "slug": "my-notes", "about": "Lists and pins the caller's own notes", "expect": { "gates": "pass", "isolation": "pass" } }

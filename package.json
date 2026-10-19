@@ -3,6 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test research/engine/test/*.test.js"
+    "test": "node --test research/engine/test/*.test.js framework/test/*.test.js"
+  },
+  "optionalDependencies": {
+    "pg": "^8.23.1"
   }
 }

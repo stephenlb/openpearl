@@ -1,0 +1,1 @@
+{ "version": 1, "name": "hidden", "description": "Hidden.", "routes": [{ "method": "GET", "path": "/ok" }], "capabilities": ["data:read:orders"] }

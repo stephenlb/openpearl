@@ -1,0 +1,1 @@
+{ "version": 1, "name": "emails", "description": "Emails.", "routes": [{ "method": "GET", "path": "/e" }], "capabilities": ["data:read:notes", "data:read:customers.email"] }

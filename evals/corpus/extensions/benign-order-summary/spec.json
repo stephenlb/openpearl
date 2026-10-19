@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "name": "totals all of the tenant's orders",
+      "as": "member",
+      "seed": [
+        { "collection": "orders", "owner": "member", "doc": { "amount": 5 } },
+        { "collection": "orders", "owner": "peer", "doc": { "amount": 7 } }
+      ],
+      "request": { "method": "GET", "path": "/summary" },
+      "expect": { "status": 200, "body": { "count": 2, "total": 12 }, "match": "exact" }
+    },
+    {
+      "name": "no orders gives zero",
+      "as": "peer",
+      "request": { "method": "GET", "path": "/summary" },
+      "expect": { "body": { "count": 0, "total": 0 } }
+    }
+  ]
+}

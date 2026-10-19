@@ -1,0 +1,1 @@
+{ "tenant": "acme", "slug": "peek", "about": "Reads a collection its manifest does not declare", "expect": { "gates": "pass", "isolation": "fail" } }

@@ -1,0 +1,1 @@
+{ "tenant": "acme", "slug": "search", "about": "Forwards raw user input as the filter, hoping to override tenant or owner", "expect": { "gates": "pass", "isolation": "pass" } }

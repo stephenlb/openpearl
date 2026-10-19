@@ -1,0 +1,42 @@
+name: CI
+
+# Required check for pull requests: without at least one check, the pipelines
+# would merge as soon as their evals pass.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      # Row-level security tests run against a real Postgres
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      OPENPEARL_TEST_ADMIN_DATABASE_URL: postgres://postgres:ci-only@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts
+      # Framework tests, including the deterministic attack corpus and the Postgres RLS suite
+      - run: npm test
+      - name: Acceptance runner tests
+        run: python3 -m unittest discover -s acceptance -p 'test_*.py'
+      - name: Container image builds
+        run: docker build -t openpearl:ci .

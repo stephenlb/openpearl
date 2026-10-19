@@ -1,0 +1,1 @@
+{ "version": 1, "name": "order-summary", "description": "Order count and total for the current tenant.", "routes": [{ "method": "GET", "path": "/summary" }], "capabilities": ["data:read:orders"] }

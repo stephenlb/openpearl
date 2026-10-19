@@ -1,0 +1,1 @@
+{ "tenant": "acme", "slug": "files", "about": "Uses dynamic import to reach the host realm", "expect": { "gates": "fail", "isolation": "fail" } }
