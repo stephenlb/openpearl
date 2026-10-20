@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>OpenPearl · Mutable Software Framework</title>
+<title>Mutable Software Framework (MSF) · OpenPearl</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -23,18 +23,18 @@
     </div>
   </nav>
   <section class="hero">
-    <p class="eyebrow">Meet OpenPearl: a yaml file that takes the night shift for your GitHub repo</p>
-    <p class="subtitle">Mutable Software Framework</p>
-    <h1>Ticket In, Merged PR Out, Seamlessly</h1>
-    <p class="lead">The small stuff? Let the little robot handle it while you get a drink from the vending machine.</p>
-    <a class="cta" href="#install">Move the robot in</a>
-    <p class="tags"><span class="tag">OPEN 24/7</span><span class="tag">NO SLEEP</span><span class="tag">TINY WORKFLOW</span><span class="tag">AUTO-MERGE</span><span class="tag">MUTABLE</span></p>
+    <p class="eyebrow">Mutable Software Framework (MSF), powered by OpenPearl</p>
+    <p class="subtitle">MSF</p>
+    <h1>Your Customers Ask, the Software Changes</h1>
+    <p class="lead">A customer describes a change. An agent builds it as a sandboxed extension for their tenant, automated checks gate it, and it ships in minutes.</p>
+    <a class="cta" href="#install">Get started</a>
+    <p class="tags"><span class="tag">MUTABLE</span><span class="tag">PER-TENANT</span><span class="tag">SANDBOXED</span><span class="tag">AUTO-MERGE</span><span class="tag">OPEN SOURCE</span></p>
     <p class="license">Open source under the <a href="https://github.com/stephenlb/openpearl/blob/main/LICENSE">Apache License 2.0</a></p>
   </section>
 </header>
 <main class="home">
   <section class="intro">
-    <p>OpenPearl is open source on <a href="https://github.com/stephenlb/openpearl">GitHub</a>. It reads a ticket, implements it, opens a PR, reviews it in a loop and auto-merges. All as a GitHub workflow. If it isn't confident, it hands the PR to a human. Seamlessly integrates into your existing CI/CD.</p>
+    <p>MSF is open source on <a href="https://github.com/stephenlb/openpearl">GitHub</a>. Its engine, OpenPearl, is a GitHub workflow that turns tickets into merged PRs, and it also works standalone for your own repo. It reads a ticket, implements it, opens a PR, reviews it in a loop and auto-merges. All as a GitHub workflow. If it isn't confident, it hands the PR to a human. Seamlessly integrates into your existing CI/CD.</p>
     <ul class="flow" aria-label="Pipeline">
       <li>Ticket</li><li>Implement</li><li>Pull request</li><li>Review loop</li><li>Eval</li><li>Merge</li>
     </ul>
@@ -111,10 +111,10 @@ gh issue create -t "Button is misaligned" \
   <section id="framework" class="split">
     <div class="head">
       <p class="eyebrow">Mutable Software Framework</p>
-      <h2>Your customers ask, the software changes</h2>
+      <h2>How MSF ships a customer request</h2>
     </div>
     <div class="body">
-      <p>OpenPearl can also take feature requests straight from your product's customers. Each request ships as a <strong>tenant extension</strong>: a sandboxed plugin that only the requesting customer's tenant can see. It is merged and deployed automatically, typically in about five minutes, with no human in the loop. That's safe because the platform makes a cross-tenant leak impossible by construction, and evals check whatever the platform can't rule out.</p>
+      <p>MSF takes feature requests straight from your product's customers. Each request ships as a <strong>tenant extension</strong>: a sandboxed plugin that only the requesting customer's tenant can see. It is merged and deployed automatically, typically in about five minutes, with no human in the loop. That's safe because the platform makes a cross-tenant leak impossible by construction, and evals check whatever the platform can't rule out.</p>
       <ol class="rows">
         <li><strong>Intake</strong> The customer submits a request in your product. The tenant comes from their login, and the request is signed and filed as an issue by your GitHub App.</li>
         <li><strong>Triage</strong> An eval rejects requests for other tenants' data, admin rights, auth or plan changes, outbound network calls or attempts to steer the pipeline. Unclear requests get clarifying questions instead.</li>

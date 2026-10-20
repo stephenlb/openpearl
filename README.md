@@ -7,19 +7,47 @@
   <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" /></a>
 </p>
 
-# OpenPearl
+# Mutable Software Framework (MSF)
 
-**Mutable Software Framework**
-
-_Ticket in, merged PR out. A tiny robot night shift for your GitHub repo._
+_Software that changes when your customers ask. Request in, sandboxed extension live in minutes._
 
 Open source under the [Apache License 2.0](LICENSE).
 
-The small stuff? Let the little robot handle it while you get a drink from the vending machine.
+MSF lets your product's customers reshape it. A customer describes a change in plain language. An agent writes it as an extension that only that customer's tenant can see, automated checks gate it, and it is merged and deployed within minutes. No ticket queue, no roadmap negotiation, no fork per customer.
+
+MSF is made of three parts:
+
+- **The host and platform** (`framework/`): multi-tenant runtime with Postgres row-level security and memory-capped worker isolates, so a cross-tenant leak is impossible by construction.
+- **The intake service** (`intake/`): takes customer requests, ties them to the tenant from the customer's login, and files them as signed GitHub issues.
+- **OpenPearl** (`.github/workflows/`): the GitHub Actions engine that turns issues into merged PRs. It builds the tenant extensions, and it can also run as a standalone ticket-to-PR robot for your own repo. See [OpenPearl](#openpearl-the-engine).
+
+## How MSF works
+
+Customer requests use their own pipeline, `.github/workflows/tenant-feature.yml`. It merges and deploys automatically because the platform makes a cross-tenant leak impossible by construction, and evals check whatever the platform can't rule out.
+
+1. The customer submits a request to the intake service (`intake/server.js`). The tenant comes from their login, and the request is signed and filed as an issue by your GitHub App.
+2. An eval decides whether the request is in scope. Anything asking for other tenants' data, admin rights, auth or plan changes, outbound network or pipeline manipulation is rejected. If the request is just unclear, the customer gets clarifying questions, and their answers start a new request.
+3. An agent with no shell, no repo token and no view of other tenants writes `tenants/<tenant>/extensions/<slug>/`.
+4. The checks run from the default branch:
+   - merge gates: path allowlist, manifest and plan, forbidden-API scan, secrets
+   - a canary isolation harness: hostile inputs across users and tenants, including per-field canaries for sensitive data such as emails
+   - acceptance tests written by a second agent that never sees the code, plus every earlier version's tests as a regression suite
+   - three LLM evals: isolation, least capability, intent match
+5. The exact gated patch is merged, and the merged commit is signed. Extensions that only read data go live for that tenant; ones that write go to a read-only preview until a tenant admin approves. For 10 minutes after each release, the host rolls back on capability denials, error spikes or repeated "not what I asked" feedback.
+
+The deterministic attack corpus (`evals/corpus/extensions/`) and the Postgres row-level-security suite run on every PR in `ci.yml`. The request corpus runs nightly in `openpearl-evals.yml`.
+
+Run the host, intake service and Postgres with `docker compose up` or `podman compose up` (`compose.yaml`), or as a pod with `podman kube play deploy/podman/openpearl.kube.yaml`. Tenant data lives in Postgres behind row-level security, and extensions run in memory-capped worker isolates.
+
+See [framework/README.md](framework/README.md) for architecture and setup, [framework/EXTENSIONS.md](framework/EXTENSIONS.md) for the extension contract, and [SECURITY.md](SECURITY.md) for the threat model.
+
+# OpenPearl: the engine
+
+_Ticket in, merged PR out. A tiny robot night shift for your GitHub repo._
+
+OpenPearl is the pipeline that powers MSF, and it works on its own too. The small stuff? Let the little robot handle it while you get a drink from the vending machine.
 
 OpenPearl reads a ticket, implements it, opens a PR, reviews it in a loop and auto-merges. All as a GitHub workflow. If it isn't confident, it waves politely and hands the PR to a human. Seamlessly integrates into your existing CI/CD.
-
-It can also take feature requests from your product's customers. Each one ships as a sandboxed extension for that customer's tenant, merged and deployed automatically within minutes. See [Mutable Software Framework](#mutable-software-framework).
 
 ## Why not a pile of markdown files?
 
@@ -351,26 +379,6 @@ Guidelines:
 - `GITHUB_TOKEN` can't push to `.github/workflows/`. Set up `PUSH_TOKEN` (see [GitHub token](#optional-github-token)) if you want the pipeline to make this change itself.
 - Try the eval on a test issue and read the PR comment to check that the verdict and reasoning make sense. Also try a case that should fail.
 - Mention the new eval in [How the night shift works](#how-the-night-shift-works).
-
-## Mutable Software Framework
-
-OpenPearl can also take feature requests from your product's customers and ship each one as a **tenant extension**: a sandboxed plugin that only that customer's tenant can see. These requests use a separate pipeline, `.github/workflows/tenant-feature.yml`. It merges and deploys automatically because the platform makes a cross-tenant leak impossible by construction, and evals check whatever the platform can't rule out.
-
-1. The customer submits a request to the intake service (`intake/server.js`). The tenant comes from their login, and the request is signed and filed as an issue by your GitHub App.
-2. An eval decides whether the request is in scope. Anything asking for other tenants' data, admin rights, auth or plan changes, outbound network or pipeline manipulation is rejected. If the request is just unclear, the customer gets clarifying questions, and their answers start a new request.
-3. An agent with no shell, no repo token and no view of other tenants writes `tenants/<tenant>/extensions/<slug>/`.
-4. The checks run from the default branch:
-   - merge gates: path allowlist, manifest and plan, forbidden-API scan, secrets
-   - a canary isolation harness: hostile inputs across users and tenants, including per-field canaries for sensitive data such as emails
-   - acceptance tests written by a second agent that never sees the code, plus every earlier version's tests as a regression suite
-   - three LLM evals: isolation, least capability, intent match
-5. The exact gated patch is merged, and the merged commit is signed. Extensions that only read data go live for that tenant; ones that write go to a read-only preview until a tenant admin approves. For 10 minutes after each release, the host rolls back on capability denials, error spikes or repeated "not what I asked" feedback.
-
-The deterministic attack corpus (`evals/corpus/extensions/`) and the Postgres row-level-security suite run on every PR in `ci.yml`. The request corpus runs nightly in `openpearl-evals.yml`.
-
-Run the host, intake service and Postgres with `docker compose up` or `podman compose up` (`compose.yaml`), or as a pod with `podman kube play deploy/podman/openpearl.kube.yaml`. Tenant data lives in Postgres behind row-level security, and extensions run in memory-capped worker isolates.
-
-See [framework/README.md](framework/README.md) for architecture and setup, [framework/EXTENSIONS.md](framework/EXTENSIONS.md) for the extension contract, and [SECURITY.md](SECURITY.md) for the threat model.
 
 ## License
 
