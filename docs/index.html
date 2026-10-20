@@ -32,42 +32,68 @@
     <p class="license">Open source under the <a href="https://github.com/stephenlb/openpearl/blob/main/LICENSE">Apache License 2.0</a></p>
   </section>
 </header>
-<main>
+<main class="home">
   <section class="intro">
     <p>OpenPearl is open source on <a href="https://github.com/stephenlb/openpearl">GitHub</a>. It reads a ticket, implements it, opens a PR, reviews it in a loop and auto-merges. All as a GitHub workflow. If it isn't confident, it hands the PR to a human. Seamlessly integrates into your existing CI/CD.</p>
+    <ul class="flow" aria-label="Pipeline">
+      <li>Ticket</li><li>Implement</li><li>Pull request</li><li>Review loop</li><li>Eval</li><li>Merge</li>
+    </ul>
   </section>
-  <section>
-    <p class="eyebrow">The story</p>
-    <h2>A pipeline that maintains itself</h2>
-    <p>Software delivery pipelines can now be implemented and be self-maintained. We built OpenPearl with an initial prompt that generated a workflow intended to be self-modifiable. Once the boilerplate scaffolding was set, we began using the engine itself to modify and expand its capabilities. It took a few tries, with a few false starts where the engine couldn't modify itself successfully. We're only talking about YAML files because this is a GitHub workflow; there are no other files involved except for evals.</p>
-    <p>Once we got past the initial problems, we added features that let the workflow integrate seamlessly with Jira, Trello, and GitHub issues. We added image support so the models have vision. Then we added a continuous chat session in issues and pull requests. It became obvious that we needed an eval to decide when a human should verify and validate a pull request, and when the ticket can be auto-merged. The goal is for most tickets to merge automatically. For safety, any modification to the workflows typically triggers human review.</p>
-    <h3>The preferred workflow</h3>
-    <p>We also wanted a command-line interface, so you can submit new tickets directly from your terminal or have an AI agent trigger a series of new tickets that the OpenPearl pipeline implements automatically. This has become the preferred method: spin up your Codex or Claude Code instance and use the GitHub CLI (<code>gh</code>) to create new issues. Ask your coding assistant to create issues for complex tasks, and it may split the work across several tickets.</p>
-    <h3>How we started</h3>
-    <p>At <a href="https://www.pubnub.com/global-network-infrastructure/">PubNub</a> and <a href="https://blocks.ai/docs/what-is-blocks">Blocks.AI</a>, we wanted to innovate our engineering workflows. Early in 2024, we realized it might be possible to build a software delivery pipeline from Jira tickets to merged PRs. We tried and failed. Most models and harnesses were newly emerging, and even simple tickets needed a lot of back and forth between the harness and a human. Now the models and harnesses are good enough that the automation pipeline we tried to build in 2024 is readily available in 2026.</p>
-    <h3>The simple workflow loop</h3>
-    <p>This is what OpenPearl is: a simple YAML file that describes a workflow for GitHub Actions. It fetches tickets from Trello, Jira, and GitHub Issues, then opens a branch, modifies the code, pushes the branch to origin, and opens a PR. It evaluates the code review in a loop until it looks clean, and finally runs an eval to determine whether the PR can be merged automatically or needs a human. That is the simple loop.</p>
+  <section class="split">
+    <div class="head">
+      <p class="eyebrow">The story</p>
+      <h2>A pipeline that maintains itself</h2>
+    </div>
+    <div class="body">
+      <p>Software delivery pipelines can now be implemented and be self-maintained. We built OpenPearl with an initial prompt that generated a workflow intended to be self-modifiable. Once the boilerplate scaffolding was set, we began using the engine itself to modify and expand its capabilities. It took a few tries, with a few false starts where the engine couldn't modify itself successfully. We're only talking about YAML files because this is a GitHub workflow; there are no other files involved except for evals.</p>
+      <p>Once we got past the initial problems, we added features that let the workflow integrate seamlessly with Jira, Trello, and GitHub issues. We added image support so the models have vision. Then we added a continuous chat session in issues and pull requests. It became obvious that we needed an eval to decide when a human should verify and validate a pull request, and when the ticket can be auto-merged. The goal is for most tickets to merge automatically. For safety, any modification to the workflows typically triggers human review.</p>
+      <div class="cards">
+        <article>
+          <h3>The preferred workflow</h3>
+          <p>We also wanted a command-line interface, so you can submit new tickets directly from your terminal or have an AI agent trigger a series of new tickets that the OpenPearl pipeline implements automatically. This has become the preferred method: spin up your Codex or Claude Code instance and use the GitHub CLI (<code>gh</code>) to create new issues. Ask your coding assistant to create issues for complex tasks, and it may split the work across several tickets.</p>
+        </article>
+        <article>
+          <h3>How we started</h3>
+          <p>At <a href="https://www.pubnub.com/global-network-infrastructure/">PubNub</a> and <a href="https://blocks.ai/docs/what-is-blocks">Blocks.AI</a>, we wanted to innovate our engineering workflows. Early in 2024, we realized it might be possible to build a software delivery pipeline from Jira tickets to merged PRs. We tried and failed. Most models and harnesses were newly emerging, and even simple tickets needed a lot of back and forth between the harness and a human. Now the models and harnesses are good enough that the automation pipeline we tried to build in 2024 is readily available in 2026.</p>
+        </article>
+        <article class="wide">
+          <h3>The simple workflow loop</h3>
+          <p>This is what OpenPearl is: a simple YAML file that describes a workflow for GitHub Actions. It fetches tickets from Trello, Jira, and GitHub Issues, then opens a branch, modifies the code, pushes the branch to origin, and opens a PR. It evaluates the code review in a loop until it looks clean, and finally runs an eval to determine whether the PR can be merged automatically or needs a human. That is the simple loop.</p>
+        </article>
+      </div>
+    </div>
   </section>
-  <section>
-    <p class="eyebrow">Why workflows</p>
-    <h2>Why not a pile of markdown files?</h2>
-    <p>Instead of piling instructions into markdown files (<code>CLAUDE.md</code>, <code>AGENTS.md</code>, rules and memory docs) that get loaded into the agent's context on every run, OpenPearl uses workflow orchestration and evals. The workflow drives each step (implement, review, fix, merge) as a separate, focused agent call, and evals decide whether a PR is ready to merge. Context isn't consumed by standing instructions, so the agent keeps its context for the actual task.</p>
+  <section class="split">
+    <div class="head">
+      <p class="eyebrow">Why workflows</p>
+      <h2>Why not a pile of markdown files?</h2>
+    </div>
+    <div class="body">
+      <p class="callout">Instead of piling instructions into markdown files (<code>CLAUDE.md</code>, <code>AGENTS.md</code>, rules and memory docs) that get loaded into the agent's context on every run, OpenPearl uses workflow orchestration and evals. The workflow drives each step (implement, review, fix, merge) as a separate, focused agent call, and evals decide whether a PR is ready to merge. Context isn't consumed by standing instructions, so the agent keeps its context for the actual task.</p>
+    </div>
   </section>
-  <section>
-    <p class="eyebrow">How it works</p>
-    <h2>How the night shift works</h2>
-    <p>When an owner, member, or collaborator opens an issue, <a href="https://github.com/stephenlb/openpearl/blob/main/.github/workflows/issue-to-pr.yml"><code>.github/workflows/issue-to-pr.yml</code></a> runs:</p>
-    <ol>
-      <li>The agent implements the issue and opens a PR.</li>
-      <li>The agent CLI runs two review/fix rounds.</li>
-      <li>The agent CLI runs the eval in <a href="https://github.com/stephenlb/openpearl/blob/main/.github/workflows/evals/pr-ready-to-merge.md"><code>.github/workflows/evals/pr-ready-to-merge.md</code></a>. On <code>YES</code> the PR is squash-merged; otherwise it stays open for a human.</li>
-    </ol>
+  <section class="split">
+    <div class="head">
+      <p class="eyebrow">How it works</p>
+      <h2>How the night shift works</h2>
+    </div>
+    <div class="body">
+      <p>When an owner, member, or collaborator opens an issue, <a href="https://github.com/stephenlb/openpearl/blob/main/.github/workflows/issue-to-pr.yml"><code>.github/workflows/issue-to-pr.yml</code></a> runs:</p>
+      <ol class="steps">
+        <li>The agent implements the issue and opens a PR.</li>
+        <li>The agent CLI runs two review/fix rounds.</li>
+        <li>The agent CLI runs the eval in <a href="https://github.com/stephenlb/openpearl/blob/main/.github/workflows/evals/pr-ready-to-merge.md"><code>.github/workflows/evals/pr-ready-to-merge.md</code></a>. On <code>YES</code> the PR is squash-merged; otherwise it stays open for a human.</li>
+      </ol>
+    </div>
   </section>
-  <section>
-    <p class="eyebrow">Usage</p>
-    <h2>Drop tickets in the slot (gh)</h2>
-    <p>Install the <a href="https://cli.github.com/">GitHub CLI</a> and run <code>gh auth login</code> once.</p>
-    <pre><code>gh issue create   # interactive: prompts for title and body
+  <section class="split">
+    <div class="head">
+      <p class="eyebrow">Usage</p>
+      <h2>Drop tickets in the slot (gh)</h2>
+    </div>
+    <div class="body">
+      <p>Install the <a href="https://cli.github.com/">GitHub CLI</a> and run <code>gh auth login</code> once.</p>
+      <pre data-label="Terminal"><code>gh issue create   # interactive: prompts for title and body
 gh issue create -t "Add dark mode toggle" -b "Add a toggle to the settings page."
 gh issue list
 gh issue view 123 -c
@@ -75,65 +101,106 @@ gh issue comment 123 -b "Also handle the empty state."
 gh issue close 123
 gh pr list
 gh run watch</code></pre>
-    <p>To attach an image, commit it with <code>gh api</code> and link it (replace <code>{owner}/{repo}</code> in the body with your repo):</p>
-    <pre><code>gh api -X PUT repos/{owner}/{repo}/contents/issue-assets/shot.png \
+      <p>To attach an image, commit it with <code>gh api</code> and link it (replace <code>{owner}/{repo}</code> in the body with your repo):</p>
+      <pre data-label="Terminal"><code>gh api -X PUT repos/{owner}/{repo}/contents/issue-assets/shot.png \
   -f message="Add shot.png" -f content="$(base64 &lt; shot.png | tr -d '\n')"
 gh issue create -t "Button is misaligned" \
   -b "![shot](https://github.com/{owner}/{repo}/blob/HEAD/issue-assets/shot.png?raw=true)"</code></pre>
+    </div>
   </section>
-  <section id="framework">
-    <p class="eyebrow">Mutable Software Framework</p>
-    <h2>Your customers ask, the software changes</h2>
-    <p>OpenPearl can also take feature requests straight from your product's customers. Each request ships as a <strong>tenant extension</strong>: a sandboxed plugin that only the requesting customer's tenant can see. It is merged and deployed automatically, typically in about five minutes, with no human in the loop. That's safe because the platform makes a cross-tenant leak impossible by construction, and evals check whatever the platform can't rule out.</p>
-    <ol>
-      <li><strong>Intake.</strong> The customer submits a request in your product. The tenant comes from their login, and the request is signed and filed as an issue by your GitHub App.</li>
-      <li><strong>Triage.</strong> An eval rejects requests for other tenants' data, admin rights, auth or plan changes, outbound network calls or attempts to steer the pipeline. Unclear requests get clarifying questions instead.</li>
-      <li><strong>Implement.</strong> An agent with no shell, no repo token and no view of other tenants writes one extension directory.</li>
-      <li><strong>Gate.</strong> A path allowlist, the manifest checked against the tenant's plan, a canary isolation harness, acceptance tests from a second agent that never sees the code, and three evals (isolation, least capability, intent match).</li>
-      <li><strong>Merge.</strong> The exact patch that passed is merged by a job with no agent in it.</li>
-      <li><strong>Deploy.</strong> The merged commit is signed and enabled for that tenant only. Extensions that write data wait in a read-only preview until a tenant admin approves. Bad releases roll back automatically.</li>
-    </ol>
-    <h3>Why automatic merge is safe</h3>
-    <p>Security lives in the runtime, and the evals are the second line. Every query is scoped by a session the platform issues, and in Postgres, row-level security enforces the same scoping inside the database, so an extension can't name another tenant. Rows marked owner-only stay with their owner, and sensitive fields like emails need their own capability and never reach logs. Extensions can only use the capabilities their manifest declares, and reaching past them takes the extension offline and alerts you. Each request runs in a fresh sandbox inside a memory-capped isolate, and only signed bundles load.</p>
-    <h3>Evals that keep data where it belongs</h3>
-    <p>The isolation harness seeds unique canary values for several users, every sensitive field and a second tenant, then attacks every route with hostile inputs. It fails if anyone sees a value they aren't entitled to, including data quietly copied into a shared collection or written to a log. A second agent writes acceptance tests from the request alone, so a feature that is safe but wrong doesn't ship, and those tests guard every later change. A corpus of attack extensions must be stopped on every pull request, and a labelled set of malicious and benign requests tests the triage eval every night.</p>
-    <h3>Runs where you run</h3>
-    <p>One container image runs the extension host, the intake service and the migrations. Start everything with <code>docker compose up</code> or <code>podman compose up</code>, or as a pod with <code>podman kube play</code>. Tenant data lives in Postgres behind row-level security, and deploys go through a pluggable adapter for your platform.</p>
-    <p class="note">See the <a href="https://github.com/stephenlb/openpearl/blob/main/framework/README.md">framework guide</a>, the <a href="https://github.com/stephenlb/openpearl/blob/main/framework/EXTENSIONS.md">extension contract</a> and the <a href="https://github.com/stephenlb/openpearl/blob/main/SECURITY.md">threat model</a>, including its known limitations.</p>
+  <section id="framework" class="split">
+    <div class="head">
+      <p class="eyebrow">Mutable Software Framework</p>
+      <h2>Your customers ask, the software changes</h2>
+    </div>
+    <div class="body">
+      <p>OpenPearl can also take feature requests straight from your product's customers. Each request ships as a <strong>tenant extension</strong>: a sandboxed plugin that only the requesting customer's tenant can see. It is merged and deployed automatically, typically in about five minutes, with no human in the loop. That's safe because the platform makes a cross-tenant leak impossible by construction, and evals check whatever the platform can't rule out.</p>
+      <ol class="rows">
+        <li><strong>Intake</strong> The customer submits a request in your product. The tenant comes from their login, and the request is signed and filed as an issue by your GitHub App.</li>
+        <li><strong>Triage</strong> An eval rejects requests for other tenants' data, admin rights, auth or plan changes, outbound network calls or attempts to steer the pipeline. Unclear requests get clarifying questions instead.</li>
+        <li><strong>Implement</strong> An agent with no shell, no repo token and no view of other tenants writes one extension directory.</li>
+        <li><strong>Gate</strong> A path allowlist, the manifest checked against the tenant's plan, a canary isolation harness, acceptance tests from a second agent that never sees the code, and three evals (isolation, least capability, intent match).</li>
+        <li><strong>Merge</strong> The exact patch that passed is merged by a job with no agent in it.</li>
+        <li><strong>Deploy</strong> The merged commit is signed and enabled for that tenant only. Extensions that write data wait in a read-only preview until a tenant admin approves. Bad releases roll back automatically.</li>
+      </ol>
+      <div class="cards">
+        <article>
+          <h3>Why automatic merge is safe</h3>
+          <p>Security lives in the runtime, and the evals are the second line. Every query is scoped by a session the platform issues, and in Postgres, row-level security enforces the same scoping inside the database, so an extension can't name another tenant. Rows marked owner-only stay with their owner, and sensitive fields like emails need their own capability and never reach logs. Extensions can only use the capabilities their manifest declares, and reaching past them takes the extension offline and alerts you. Each request runs in a fresh sandbox inside a memory-capped isolate, and only signed bundles load.</p>
+        </article>
+        <article>
+          <h3>Evals that keep data where it belongs</h3>
+          <p>The isolation harness seeds unique canary values for several users, every sensitive field and a second tenant, then attacks every route with hostile inputs. It fails if anyone sees a value they aren't entitled to, including data quietly copied into a shared collection or written to a log. A second agent writes acceptance tests from the request alone, so a feature that is safe but wrong doesn't ship, and those tests guard every later change. A corpus of attack extensions must be stopped on every pull request, and a labelled set of malicious and benign requests tests the triage eval every night.</p>
+        </article>
+        <article class="wide">
+          <h3>Runs where you run</h3>
+          <p>One container image runs the extension host, the intake service and the migrations. Start everything with <code>docker compose up</code> or <code>podman compose up</code>, or as a pod with <code>podman kube play</code>. Tenant data lives in Postgres behind row-level security, and deploys go through a pluggable adapter for your platform.</p>
+        </article>
+      </div>
+      <p class="note">See the <a href="https://github.com/stephenlb/openpearl/blob/main/framework/README.md">framework guide</a>, the <a href="https://github.com/stephenlb/openpearl/blob/main/framework/EXTENSIONS.md">extension contract</a> and the <a href="https://github.com/stephenlb/openpearl/blob/main/SECURITY.md">threat model</a>, including its known limitations.</p>
+    </div>
   </section>
-  <section id="research">
-    <p class="eyebrow">Research</p>
-    <h2>Can it build a self-healing, self-improving, self-optimizing engine?</h2>
-    <p>We opened 63 issues with <code>gh issue create</code> and let the pipeline build an engine of 43 source files, repair its own gates, and recover from a red <code>main</code>. 59 of 63 PRs merged, merge conflicts were resolved 17 of 17 times, and a watchdog cut red-main recovery from over an hour to under two minutes. Run time did not improve. <a href="research.html">Read the full report with charts and data</a>.</p>
+  <section id="research" class="split">
+    <div class="head">
+      <p class="eyebrow">Research</p>
+      <h2>Can it build a self-healing, self-improving, self-optimizing engine?</h2>
+    </div>
+    <div class="body">
+      <div class="figures">
+        <div><b>59/63</b>PRs merged</div>
+        <div><b>17/17</b>merge conflicts resolved</div>
+        <div><b>&lt;2 min</b>red-main recovery, down from over an hour</div>
+      </div>
+      <p>We opened 63 issues with <code>gh issue create</code> and let the pipeline build an engine of 43 source files, repair its own gates, and recover from a red <code>main</code>. 59 of 63 PRs merged, merge conflicts were resolved 17 of 17 times, and a watchdog cut red-main recovery from over an hour to under two minutes. Run time did not improve.</p>
+      <a class="more" href="research.html">Read the full report with charts and data &rarr;</a>
+    </div>
   </section>
-  <section id="install">
-    <p class="eyebrow">Setup</p>
-    <h2>Move the robot in</h2>
-    <p>Paste this prompt into your coding agent (Claude Code, Codex, OpenCode, Pi) from the root of your project. It installs the OpenPearl workflow files.</p>
-    <pre id="install-prompt"><code>Install OpenPearl into this project.
+  <section id="install" class="split install">
+    <div class="head">
+      <p class="eyebrow">Setup</p>
+      <h2>Move the robot in</h2>
+    </div>
+    <div class="body">
+      <p>Paste this prompt into your coding agent (Claude Code, Codex, OpenCode, Pi) from the root of your project. It installs the OpenPearl workflow files.</p>
+      <div class="code-wrap">
+        <pre id="install-prompt" data-label="Prompt"><code>Install OpenPearl into this project.
 
 1. Download the .github/workflows directory from https://github.com/stephenlb/openpearl (branch main) into this project's .github/workflows directory: issue-to-pr.yml, pr-comment-chat.yml, retry-issue-to-pr.yml and the evals/ folder (evals/pr-ready-to-merge.md). Only also copy jira-to-issue.yml, issue-comment-to-jira.yml and trello-to-issue.yml if I use Jira or Trello. For example: git clone --depth 1 https://github.com/stephenlb/openpearl /tmp/openpearl, then copy the files. Do not overwrite existing files without asking me.
 2. Do not modify any other files in my project.
 3. Commit the new files on a branch and tell me to finish setup:
-   - Enable Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests".
-   - Add the secret ANTHROPIC_API_KEY under Settings > Secrets and variables > Actions (or the Amazon Bedrock secrets listed in https://github.com/stephenlb/openpearl#setup).</code></pre>
-    <button id="copy-prompt" type="button">Copy prompt</button>
-    <p>Or move in by hand: copy the workflow files into your project, commit them, then finish setup in GitHub.</p>
-    <pre><code>git clone --depth 1 https://github.com/stephenlb/openpearl /tmp/openpearl
+   - Enable Settings &gt; Actions &gt; General &gt; "Allow GitHub Actions to create and approve pull requests".
+   - Add the secret ANTHROPIC_API_KEY under Settings &gt; Secrets and variables &gt; Actions (or the Amazon Bedrock secrets listed in https://github.com/stephenlb/openpearl#setup).</code></pre>
+        <button id="copy-prompt" type="button">Copy prompt</button>
+      </div>
+      <p>Or move in by hand: copy the workflow files into your project, commit them, then finish setup in GitHub.</p>
+      <pre data-label="Terminal"><code>git clone --depth 1 https://github.com/stephenlb/openpearl /tmp/openpearl
 mkdir -p .github/workflows
 cp -r /tmp/openpearl/.github/workflows/issue-to-pr.yml /tmp/openpearl/.github/workflows/pr-comment-chat.yml /tmp/openpearl/.github/workflows/retry-issue-to-pr.yml /tmp/openpearl/.github/workflows/evals .github/workflows/
 git checkout -b add-openpearl
 git add .github/workflows
 git commit -m "Add OpenPearl"
 git push origin add-openpearl</code></pre>
-    <ol>
-      <li>Enable <strong>Settings &gt; Actions &gt; General &gt; Allow GitHub Actions to create and approve pull requests</strong>.</li>
-      <li>Add the secret <code>ANTHROPIC_API_KEY</code> under <strong>Settings &gt; Secrets and variables &gt; Actions</strong>.</li>
-      <li>Open a pull request from the <code>add-openpearl</code> branch and merge it, then open an issue and watch the robot work.</li>
-    </ol>
-    <p class="note">See the <a href="https://github.com/stephenlb/openpearl">README</a> for full setup instructions. To let customers request features, follow the <a href="https://github.com/stephenlb/openpearl/blob/main/framework/README.md#setup">Mutable Software Framework setup</a>.</p>
+      <ol class="steps">
+        <li>Enable <strong>Settings &gt; Actions &gt; General &gt; Allow GitHub Actions to create and approve pull requests</strong>.</li>
+        <li>Add the secret <code>ANTHROPIC_API_KEY</code> under <strong>Settings &gt; Secrets and variables &gt; Actions</strong>.</li>
+        <li>Open a pull request from the <code>add-openpearl</code> branch and merge it, then open an issue and watch the robot work.</li>
+      </ol>
+      <p class="note">See the <a href="https://github.com/stephenlb/openpearl">README</a> for full setup instructions. To let customers request features, follow the <a href="https://github.com/stephenlb/openpearl/blob/main/framework/README.md#setup">Mutable Software Framework setup</a>.</p>
+    </div>
   </section>
 </main>
+<footer class="site">
+  <div>
+    <a class="brand" href="./"><img alt="" src="favicon.png">OpenPearl</a>
+    <p>Open source under the <a href="https://github.com/stephenlb/openpearl/blob/main/LICENSE">Apache License 2.0</a></p>
+  </div>
+  <nav aria-label="Footer">
+    <a href="https://github.com/stephenlb/openpearl">GitHub</a>
+    <a href="https://github.com/stephenlb/openpearl/issues">Issues</a>
+    <a href="research.html">Research</a>
+    <a href="https://discord.gg/mygDNrQ7DJ">Discord</a>
+  </nav>
+</footer>
 <script>
 document.getElementById("copy-prompt").onclick=function(){
   var b=this;
